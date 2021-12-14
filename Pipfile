@@ -1,0 +1,26 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+ipython = "*"
+matplotlib = "*"
+numpy = "*"
+scipy = "*"
+hdf5storage = "*"
+cython = "*"
+future = "*"
+opencv-python = "*"
+scikit-image = "*"
+sklearn = "*"
+tqdm = "*"
+pynwb = "*"
+ipyparallel = "*"
+holoviews = "*"
+tensorflow = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
