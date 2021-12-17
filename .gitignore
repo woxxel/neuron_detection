@@ -1,0 +1,6 @@
+#ignoring tif files
+*.tif
+*.mmap
+
+#ignoring subfolder of CaImAn
+./CaImAn
