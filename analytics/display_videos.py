@@ -77,7 +77,8 @@ def display_videos(paths,f=15):
         plt.suptitle('t=%.2fs'%(val/f))
         for i,(vid,img) in enumerate(zip(vids,imgs)):
             img.set_data(vid.getSlice(val))
-        imgs[-1].set_data(vids[0].getSlice(val)-vids[1].getSlice(val))
+        if nVideos>1:
+            imgs[-1].set_data(vids[0].getSlice(val)-vids[1].getSlice(val))
         # redraw canvas while idle
         fig.canvas.draw_idle()
 
@@ -104,8 +105,8 @@ def display_videos(paths,f=15):
 
     ## preparing figure
     fig, axes = plt.subplots(1,nVideos+1,figsize=(12,6))
-    if nVideos==1:
-        axes = [axes]
+    # if nVideos==1:
+        # axes = [axes]
 
     axamp = plt.axes([0.25, .03, 0.50, 0.02])
     samp = Slider(axamp, 'time', 0, dims[0], valinit=0)
@@ -116,7 +117,9 @@ def display_videos(paths,f=15):
     imgs = []
     for vid,ax in zip(vids,axes):
         imgs.append(ax.imshow(vid.getSlice(0)))
-    imgs.append(axes[-1].imshow(vids[0].getSlice(0)-vids[1].getSlice(0)))
+
+    if nVideos>1:
+        imgs.append(axes[-1].imshow(vids[0].getSlice(0)-vids[1].getSlice(0)))
 
     fig.canvas.mpl_connect('button_press_event', on_click)
 

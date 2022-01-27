@@ -19,6 +19,8 @@ pynwb = "*"
 ipyparallel = "*"
 holoviews = "*"
 tensorflow = "*"
+pysimplegui = "*"
+asyncssh = "*"
 
 [dev-packages]
 

@@ -4,3 +4,5 @@
 
 #ignoring subfolder of CaImAn
 ./CaImAn
+
+./data
