@@ -13,18 +13,16 @@ For a more complete demo check the script demo_OnACID_mesoscope.py
 import logging
 import numpy as np
 import scipy as sp
-import os, sys, hdf5storage, time
+import os, sys, time
 from scipy.io import savemat
 
 import matplotlib.pyplot as plt
-from utils import pathcat
 
 sys.path.append('/home/wollex/Data/Science/PhD/Programs/CaImAn')
 import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.paths import caiman_datadir
 from caiman.motion_correction import MotionCorrect
-
 
 try:
     if __IPYTHON__:
@@ -48,7 +46,7 @@ logging.basicConfig(format=
 params_dict ={
 
         #general data
-        'fnames': [fname],
+        # 'fnames': [fname],
         'fr': 15,
         'decay_time': 0.47,
         'gSig': [6, 6],                     # expected half size of neurons
@@ -57,7 +55,7 @@ params_dict ={
         'rf': 64//2,                        # size of patch
         'K': 200,                           # max number of components
         'nb': 2,                            # number of background components per patch
-        'p': 0,                             # order of AR indicator dynamics
+        'p': 2,                             # order of AR indicator dynamics
         'stride': 8,
         #'simultaneously': True,
 
@@ -65,20 +63,28 @@ params_dict ={
         'ssub': 2,                          # spatial subsampling during initialization
         'tsub': 5,                          # temporal subsampling during initialization
 
-        #motion
-        'motion_correct': False,
-        'pw_rigid': False,
-        'strides': 96,
-        'max_shifts': 12,                   # maximum allowed rigid shift in pixels
-        'overlaps': 24,                     # overlap between patches (size of patch in pixels: strides+overlaps)
-        'max_deviation_rigid': 12,          # maximum deviation allowed for patch with respect to rigid shifts
-        #'only_init': False,                # whether to run only the initialization
+        ### motion
+        'pw_rigid': True,
+        'shifts_opencv': True,
+
+        'strides': (96,96),
+        'max_shifts': (12,12),     # maximum allowed rigid shift in pixels
+        'overlaps': (48,48),       # overlap between patches (size of patch in pixels: strides+overlaps)
+        'num_frames_split': 200,
+        'max_deviation_rigid': 12, # maximum deviation allowed for patch with respect to rigid shifts
+        # 'only_init': False,        # whether to run only the initialization
 
         #online
-        'init_batch': 300,                  # number of frames for initialization
+        'motion_correct': False,
+        'ds_factor': 2,                     # spatial downsampling
+        'epochs': 2,                        # number of times to go over the data (set to 2?)
+        'expected_comps': 1000,
+        'init_batch': 200,                  # number of frames for initialization
         'init_method': 'bare',              # initialization method
-        'update_freq': 2000,                # update every shape at least once every update_freq steps
+        'n_refit': 0,                       # additional iterations for computing traces
+        'update_freq': 500,                # update every shape at least once every update_freq steps
         'use_dense': False,
+        'path_to_model': '/home/wollex/Data/Science/WolfGroup/PhD/data_pipeline/CaImAn/model/cnn_model_online.json',
         #'dist_shape_update': True,
 
         #make things more memory efficient
@@ -90,18 +96,19 @@ params_dict ={
 
         #quality
         'min_SNR': 2.5,                     # minimum SNR for accepting candidate components
-        'rval_thr': 0.85,                   # space correlation threshold for accepting a component
-        'rval_lowest': 0,
+        'rval_thr': 0.8,                   # space correlation threshold for accepting a component
+        'simultaneously': True,
+        # 'rval_lowest': 0,
         'sniper_mode': True,                # flag for using CNN for detecting new components
-        #'test_both': True,                 # use CNN and correlation to test for new components
-        'use_cnn': True,
+        'test_both': True,                 # use CNN and correlation to test for new components
+        # 'use_cnn': True,
 
         'thresh_CNN_noisy': 0.6,            # CNN threshold for candidate components
-        'min_cnn_thr': 0.8,                 # threshold for CNN based classifier
-        'cnn_lowest': 0.3,                  # neurons with cnn probability lower than this value are rejected
+        # 'min_cnn_thr': 0.8,                 # threshold for CNN based classifier
+        # 'cnn_lowest': 0.3,                  # neurons with cnn probability lower than this value are rejected
 
         #display
-        'show_movie': False,
+        'show_movie': True,
         'save_online_movie': False,
         'movie_name_online': "test_mp4v.avi"
 }
@@ -142,7 +149,7 @@ def run_CaImAn_mouse(pathMouse,params_dict,sessions=None,fname_start=["thy","sha
     plt.ion()
     if not sessions==None:
         for s in range(sessions[0],sessions[-1]+1):
-            pathSession = pathcat([pathMouse,"Session%02d/"%s])
+            pathSession = os.path.join(pathMouse,"Session%02d/"%s)
             print("\t Session: "+pathSession)
             run_CaImAn_session(pathSession,params_dict,use_parallel,reprocess)
       # l_Ses = os.listdir(pathMouse)
@@ -154,7 +161,10 @@ def run_CaImAn_mouse(pathMouse,params_dict,sessions=None,fname_start=["thy","sha
       #     run_CaImAn_session(pathSession,use_parallel=use_parallel)
           ##return cnm, Cn, opts
 
-def run_CaImAn_session(pathSession,params_dict,fname_start=None,use_parallel=True,reprocess=False):
+def run_CaImAn_session(pathSession,params_dict,fname_start=None,    # general data
+            border_thr=5.,                      # minimal distance of centroid to border
+            use_parallel=True,n_processes=None, # parallel computing
+            reprocess=False):
     """
         TODO:
             [ ] check, what kind of motion correction is run and how well it performs vs external one
@@ -209,30 +219,31 @@ def run_CaImAn_session(pathSession,params_dict,fname_start=None,use_parallel=Tru
 
     ## set path for saving results and check, whether it's already present
     svname = "results_OnACID"
-    svname_mat = pathSession + svname + '.mat'
+    # svname_mat = pathSession + svname + '.mat'
     svname_h5 = pathSession + svname + '.hdf5'
-    if os.path.exists(svname_mat):
-        print("Processed file already present - skipping")
-        return
+    # if os.path.exists(svname_mat):
+    #     print("Processed file already present - skipping")
+    #     return
 
     ## find path of recording session within pathSession
     fname = None
     for f in os.listdir(pathSession):
         if any([f.startswith(start) for start in fname_start]):
-            fname = pathSession + f
+            fname = os.path.join(pathSession,f)
             if f.endswith('.h5'):
                 break
+    print(fname)
     if not fname or not os.path.exists(fname):
         print("No file here to process :(")
         return
-    # params_dict['fnames'] = [fname]
+    params_dict['fnames'] = [fname]
 
     t_start = time.time()   # start time measurement from here
 
     ## initialize parameters and settings for running OnACID
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
     if use_parallel:
-        c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=4, single_thread=False)
+        c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=n_processes, single_thread=False)
     else:
         dview=None
         n_processes=1
@@ -242,63 +253,81 @@ def run_CaImAn_session(pathSession,params_dict,fname_start=None,use_parallel=Tru
     ## CAREFUL! requires loading the whole file into memory - might go beyond your RAM
     print("now running step 1: preparing data for analysis @t = " +  time.ctime())
     if run_motion_correct:
-        ## requires to be run prior to neuron detection as this function passes
-        ## over the recordings twice, but should only need to correct for motion once
-        print('\tperform motion correction')
+        ## create mc object with specified parameters and run it
 
-        ## create a motion correction object with the specified parameters and run it
+        print('\t Perform motion correction...')
         mc = MotionCorrect(fname, dview=dview, **opts.get_group('motion'))
-        mc.motion_correct(save_movie=True)  ## is this only piecewise-rigid motion correction? (using NoRMCorre)
-        fname_memmap = cm.save_memmap(mc.mmap_file, base_name='memmap_', save_dir=sv_dir, n_chunks=100, order='C', dview=dview)
-        os.remove(mc.mmap_file[0])  # clean up afterwards
-        # opts.change_params({'motion_correct':True,'pw_rigid':True})
-    else:
-        fname_memmap = cm.save_memmap([fname], base_name='memmap_', save_dir=sv_dir, n_chunks=100, order='C', dview=dview)
+        mc.motion_correct(save_movie=True)
+        print(f'\t Motion correction done and saved in {mc.mmap_file}')
+        print('\t calculate & save motion correction statistics')
+        opts.change_params({'fnames': mc.mmap_file})
     if use_parallel:
         cm.stop_server(dview=dview)      ## restart server to clean up memory
 
     print("\tpreparation done @t = %s, (time passed: %s)" % (time.ctime(),str(time.time()-t_start)))
-    #fname_memmap = sv_dir + "memmap__d1_512_d2_512_d3_1_order_C_frames_8989_.mmap"
-    opts.change_params({'fnames': [fname_memmap]})
 
     ## create background image from local-correlation analysis (reduction along t-dimension) for display
-    Cn = cm.load(fname_memmap, subindices=slice(0,None,5)).local_correlations(swap_dim=False)
+    # Cn = cm.load(fname_memmap, subindices=slice(0,None,5)).local_correlations(swap_dim=False)
 
-    ## open memmap file to prepare for processing
-    Yr, dims, T = cm.load_memmap(fname_memmap)
-    Y = np.reshape(Yr.T, [T] + list(dims), order='F')
 
 
 ### -------------------------- 1st run (OnACID) ---------------------------- ###
     print("now running step 2: OnACID... ")
     ## fit with online object on memmapped data
-    cnm = cnmf.online_cnmf.OnACID(params=opts)
-    cnm.fit_online()
-
-    print('\tNumber of components found:' + str(cnm.estimates.A.shape[-1]))
-
-    ### %% evaluate components (CNN, SNR, correlation, border-proximity)
+    ## careful: requires data normalized to [0,1]!
     if use_parallel:
-        c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=4, single_thread=False)
+        c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=n_processes, single_thread=False)
     else:
         dview=None
         n_processes=1
+    print(opts.get_group('online'))
+    onacid = cnmf.online_cnmf.OnACID(params=opts,dview=dview)
+    onacid.fit_online()
 
-    ## evaluate components according to SNR, CNN, rval
-    cnm.estimates.evaluate_components(Y,opts,dview) # does this work with a memmapped file?
-    #cnm.estimates.view_components(img=Cn)
-    #plt.close('all')
-    cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components, crd=None)   ## plot contours, need that one to get the coordinates
-    plt.draw()
-    plt.pause(1)
+    N = onacid.estimates.A.shape[-1]
+    print('\tNumber of components found:' + str(onacid.estimates.A.shape[-1]))
+
+
+    # fitness_raw, erfc, _,_ = cm.components_evaluation.compute_event_exceptionality(onacid.estimates.C)
+    # N_samples = np.ceil(opts.get("data","fr") * opts.get("data","decay_time")).astype(np.int)
+    # comp_SNR = -norm.ppf(np.exp(fitness / N_samples))
+
+    ### %% evaluate components (CNN, SNR, correlation, border-proximity)
+    Yr, dims, T = cm.load_memmap(opts.get("data","fnames")[0])
+    Y = np.reshape(Yr.T, [T] + list(dims), order='F')
+    onacid.estimates.evaluate_components(Y,opts,dview) # does this work with a memmapped file?
 
     ## find and remove neurons which are too close to the border
+    plot_stuff=False
+    if plot_stuff:
+        onacid.estimates.plot_contours(idx=onacid.estimates.idx_components)   ## plot contours, need that one to get the coordinates
+        plt.draw()
+        plt.pause(1)
+    else:
+        coords = cm.utils.visualization.get_contours(onacid.estimates.A, dims, thr=0.2, thr_method='max')
+
+    onacid.estimates.CoM = np.zeros((N,2))
     idx_border = []
-    for n in cnm.estimates.idx_components:
-        if (cnm.estimates.coordinates[n]['CoM'] < border_thr).any() or (cnm.estimates.coordinates[n]['CoM'] > (cnm.estimates.dims[0]-border_thr)).any():
+    for n in onacid.estimates.idx_components:
+        onacid.estimates.CoM[n,:] = coords[n]['CoM']
+        if (coords[n]['CoM'] < border_thr).any() or (coords[n]['CoM'] > (dims[0]-border_thr)).any():
             idx_border.append(n)
-    cnm.estimates.idx_components = np.setdiff1d(cnm.estimates.idx_components,idx_border)
-    cnm.estimates.idx_components_bad = np.union1d(cnm.estimates.idx_components_bad,idx_border)
+    onacid.estimates.idx_components = np.setdiff1d(onacid.estimates.idx_components,idx_border)
+    onacid.estimates.idx_components_bad = np.union1d(onacid.estimates.idx_components_bad,idx_border)
+
+    return onacid, dview, fname
+
+
+    ## open memmap file to prepare for processing
+
+
+    # onacid.estimates.evaluate_components_CNN(opts,dview) # does this work with a memmapped file?
+    ## evaluate components according to SNR, CNN, rval
+    #cnm.estimates.view_components(img=Cn)
+    #plt.close('all')
+
+
+    # return onacid
 
     # update object with selected components
     cnm.estimates.select_components(use_object=True, save_discarded_components=False)
@@ -317,7 +346,7 @@ def run_CaImAn_session(pathSession,params_dict,fname_start=None,use_parallel=Tru
     ## run a refit on the whole data
     if use_parallel:
         cm.stop_server(dview=dview)      ## restart server to clean up memory
-        c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=4, single_thread=False)
+        c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=n_processes, single_thread=False)
     else:
         dview=None
         n_processes=1
@@ -355,7 +384,6 @@ def run_CaImAn_session(pathSession,params_dict,fname_start=None,use_parallel=Tru
                    b=cnm.estimates.b,
                    f=cnm.estimates.f)
     savemat(svname_mat,results)
-    #hdf5storage.write(results, '.', svname_mat, matlab_compatible=True)
 
     #cnm.estimates.coordinates = None
     #cnm.estimates.plot_contours(img=Cn, crd=None)

@@ -21,6 +21,7 @@ holoviews = "*"
 tensorflow = "*"
 pysimplegui = "*"
 asyncssh = "*"
+peakutils = "*"
 
 [dev-packages]
 

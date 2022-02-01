@@ -64,64 +64,52 @@ def display_videos(paths,f=15):
     # Animation controls
     global is_manual
     is_manual = False       # True if user has taken control of the animation
+    global interval
     interval = 1./f*1000    # ms, time between animation frames
+
+    windowName = "Video"
+    cv2.namedWindow(windowName)
 
     ## definition of interaction functions
     def update_slider(val):
-        global is_manual
-        is_manual=True
-        update(int(val))
+        create_frame(vids,val)
 
-    def update(val):
-        # update curve
-        plt.suptitle('t=%.2fs'%(val/f))
-        for i,(vid,img) in enumerate(zip(vids,imgs)):
-            img.set_data(vid.getSlice(val))
-        if nVideos>1:
-            imgs[-1].set_data(vids[0].getSlice(val)-vids[1].getSlice(val))
-        # redraw canvas while idle
-        fig.canvas.draw_idle()
-
-    def update_plot(num):
-        global is_manual
-        if is_manual:
-            return imgs, # don't change
-
-        val = (samp.val + 1) % samp.valmax
-        samp.set_val(val)
-        is_manual = False # the above line called update_slider, so we need to reset this
-        return imgs,
-
-    def on_click(event):
-        # Check where the click happened
-        (xm,ym),(xM,yM) = samp.label.clipbox.get_points()
-        if xm < event.x < xM and ym < event.y < yM:
-            # Event happened within the slider, ignore since it is handled in update_slider
-            return
-        else:
-            # user clicked somewhere else on canvas = unpause
+    def toggle_play(event,*args):
+        if event == cv2.EVENT_LBUTTONDOWN:
             global is_manual
-            is_manual=False
+            is_manual = not is_manual
 
-    ## preparing figure
-    fig, axes = plt.subplots(1,nVideos+1,figsize=(12,6))
-    # if nVideos==1:
-        # axes = [axes]
+    def update_frequency(val):
+        global interval
+        interval = 1./val*1000
 
-    axamp = plt.axes([0.25, .03, 0.50, 0.02])
-    samp = Slider(axamp, 'time', 0, dims[0], valinit=0)
+    def create_frame(vids,val):
+        frame = np.concatenate([vid.getSlice(val) for vid in vids],axis=1)
+        val_freq = cv2.getTrackbarPos('frequency',windowName)
+        cv2.putText(frame, 't=%.2fs @%dHz'%(val/15.,val_freq), (50, 50), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.8, color=(255,0,0), thickness=2) ## color not working...
+        cv2.imshow(windowName,frame)
 
-    # call update function on slider value change
-    samp.on_changed(update_slider)
+    cv2.createTrackbar('slider', windowName, 0, dims[0]-1, update_slider)
+    cv2.createTrackbar('frequency', windowName, 0, 100, update_frequency)
+    cv2.setMouseCallback(windowName, toggle_play)
+    cv2.setWindowProperty(windowName,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_FULLSCREEN)
+    cv2.setWindowProperty(windowName,cv2.WND_PROP_FULLSCREEN,cv2.WINDOW_NORMAL)
 
-    imgs = []
-    for vid,ax in zip(vids,axes):
-        imgs.append(ax.imshow(vid.getSlice(0)))
+    while True:
 
-    if nVideos>1:
-        imgs.append(axes[-1].imshow(vids[0].getSlice(0)-vids[1].getSlice(0)))
+        if not is_manual:
+            val = cv2.getTrackbarPos('slider',windowName)
+            val = (val + 1) % dims[0]
+            create_frame(vids,val)
 
-    fig.canvas.mpl_connect('button_press_event', on_click)
+            cv2.setTrackbarPos('slider',windowName,val)
 
-    anim = FuncAnimation(fig, update_plot, frames=dims[0], blit=False, interval=interval)
-    plt.show()
+        cv2.waitKey(int(interval))
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+        if cv2.getWindowProperty(windowName, cv2.WND_PROP_VISIBLE) <1:
+            break
+
+    cv2.destroyAllWindows()

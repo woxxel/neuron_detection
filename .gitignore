@@ -3,6 +3,5 @@
 *.mmap
 
 #ignoring subfolder of CaImAn
-./CaImAn
-
-./data
+CaImAn/
+data/
