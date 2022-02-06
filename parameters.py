@@ -32,7 +32,7 @@ CaImAn = {
     ### preprocess_params
 
     ### patch_params
-    'border_pix': 5,
+    'border_pix': 0,
     'rf': 64,                           # size of patch
     'stride': 16,
     'only_init': False, # (what exactly is this?) # whether to run only the initialization

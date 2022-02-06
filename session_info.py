@@ -112,13 +112,16 @@ class SessionInfo:
 
         self.commit_info()
 
-        # fname_default = self.get_step_path(step,default=True)
-        # if fname != fname_default:
-        #     path_to = os.path.join(self.info['paths']['to_session'],fname_default+ext)
-        #     os.rename(path,path_to)
+    def remove_step(self,step):
 
-        # self.update_status()
+        path = self.info['paths'][f'to_{step}']
+        print(path)
 
+        if path and os.path.exists(path):
+            os.remove(path)
+        self.info['paths'][f'to_{step}'] = None
+        self.info['progress'][step] = False
+        self.commit_info()
 
     def commit_info(self):
         with open(self.info['paths']['to_info'], 'w') as outfile:
