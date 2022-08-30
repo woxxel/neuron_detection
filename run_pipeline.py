@@ -29,9 +29,9 @@ def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='555wt',sessions=None,n_p
     if not sessions:
         cmd = f"ssh {para.preprocess['ssh_alias']} 'find {folder}/Session* -type d -maxdepth 0'"
         stdout = os.popen(cmd).read()
-        snames = stdout.split('\n')[:-1] # parse output and remove last linebreak
+        session_names = stdout.split('\n')[:-1] # parse output and remove last linebreak
     else:
-        snames = [f"{folder}/Session%.02d"%s for s in sessions]
+        session_names = [f"{folder}/Session%.02d"%s for s in sessions]
 
     path_to_mouse = os.path.join(para.preprocess['target_folder'],mouse)
     # mouseInfo = MouseInfo(path_to_mouse)
@@ -39,19 +39,19 @@ def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='555wt',sessions=None,n_p
     os.environ['MKL_NUM_THREADS'] = '1'
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
-    for sname in snames:
+    for session_name in session_names:
 
-        path_to_session = os.path.join(path_to_mouse,os.path.split(sname)[-1])
+        path_to_session = os.path.join(path_to_mouse,os.path.split(session_name)[-1])
         os.makedirs(path_to_session, exist_ok=True)
         sessionInfo = SessionInfo(path_to_session)
 
-        print(f"Processing {os.path.split(sname)[-1]}...")
+        print(f"Processing {os.path.split(session_name)[-1]}...")
 
         if not sessionInfo.status("stacks"):
             ## this should be merged to one function, testing whether stacking is needed
             ## further catch when no data is present
             ## further get behavior data from server
-            get_data_from_server(sname,para.preprocess['tmp_folder'],para.preprocess['ssh_alias'])
+            get_data_from_server(session_name,para.preprocess['tmp_folder'],para.preprocess['ssh_alias'])
             path_to_stacks = make_stack_from_single_tifs(para.preprocess['tmp_folder'],path_to_session,data_type='float16',clean_after_stacking=True)
             sessionInfo.register_new("stacks",path_to_stacks)
         else:
