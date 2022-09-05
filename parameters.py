@@ -2,7 +2,7 @@
 preprocess = {
     'target_folder': './data',
     'tmp_folder': './data/tmp',
-    'ssh_alias': 'login-gwdg',
+    'ssh_alias': 'transfer-mpi-mdc',
 }
 
 # set up CNMF parameters
@@ -51,7 +51,7 @@ CaImAn = {
     'thresh_CNN_noisy': 0.6,            # CNN threshold for candidate components
     'update_freq': 500,                 # update shapes at least once every update_freq steps
     'use_dense': False,
-    'path_to_model': '/home/wollex/Data/Science/WolfGroup/PhD/data_pipeline/CaImAn/model/cnn_model_online.h5',
+    'path_to_model': '/home/wollex/Data/Science/WolfGroup/PlaceFields/data_pipeline/CaImAn/model/cnn_model_online.h5',
 
     ### display during online
     'show_movie': True,

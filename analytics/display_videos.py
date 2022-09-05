@@ -22,12 +22,14 @@ class tif_mov:
     def __init__(self,path,dim=None,dtype=None):
 
         ext = os.path.splitext(path)[-1]
+        print(path)
+        print(ext)
 
         if ext=='.tif':
             self.file = TiffFile(path)
             self.shape = self.file.series[0].shape
             self.dtype = self.file.series[0].dtype
-            self.getSlice = lambda t: self.file.pages[t].asarray()
+            self.getSlice = lambda t: self.file.pages[t].asarray().astype('float32') ## for some reason, cv2 doesn't like float16 images...
         elif ext=='.mmap':
 
             assert dim, 'dim and dtype needs to be specified for mmap'

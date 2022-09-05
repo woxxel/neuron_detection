@@ -1,4 +1,5 @@
-import os
+import os, sys
+sys.path.append('CaImAn')
 
 from session_info import *
 
@@ -8,6 +9,8 @@ from preprocessing.file_structures.make_stack_from_single_tifs import *
 from image_processing import *
 
 import parameters as para
+
+
 
 def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='555wt',sessions=None,n_processes=4):
 
@@ -32,6 +35,8 @@ def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='555wt',sessions=None,n_p
         session_names = stdout.split('\n')[:-1] # parse output and remove last linebreak
     else:
         session_names = [f"{folder}/Session%.02d"%s for s in sessions]
+
+    print(session_names)
 
     path_to_mouse = os.path.join(para.preprocess['target_folder'],mouse)
     # mouseInfo = MouseInfo(path_to_mouse)
