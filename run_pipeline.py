@@ -23,9 +23,7 @@ def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='555wt',sessions=None,n_p
             mouse (string)
                 mouse name
             sessions (list(int)) | None
-                specifies which sessions should be preprocessed. if 'None', all Sessions found will be processed
-            ssh_alias (string)
-                name of the connection
+                specifies which sessions should be preprocessed. if 'None', all sessions found will be processed
     """
 
     folder = f"/usr/users/cidbn1/neurodyn/{dataset}/{mouse}"
@@ -35,8 +33,6 @@ def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='555wt',sessions=None,n_p
         session_names = stdout.split('\n')[:-1] # parse output and remove last linebreak
     else:
         session_names = [f"{folder}/Session%.02d"%s for s in sessions]
-
-    print(session_names)
 
     path_to_mouse = os.path.join(para.preprocess['target_folder'],mouse)
     # mouseInfo = MouseInfo(path_to_mouse)

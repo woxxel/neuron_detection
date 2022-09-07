@@ -2,7 +2,7 @@
 preprocess = {
     'target_folder': './data',
     'tmp_folder': './data/tmp',
-    'ssh_alias': 'transfer-mpi-mdc',
+    'ssh_alias': 'transfer-mpi-mdc',    # (string) name of the connection
 }
 
 # set up CNMF parameters
@@ -25,7 +25,7 @@ CaImAn = {
     'nb': 2,                            # number of background components per patch
 
     ### init_params
-    'K': 200,                           # max number of components
+    'K': 100,                           # max number of components
     'ssub': 2,                          # spatial subsampling during initialization
     'tsub': 5,                          # temporal subsampling during initialization
 

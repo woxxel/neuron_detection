@@ -27,12 +27,19 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
     onacid = cnmf.online_cnmf.OnACID(params=opts,dview=dview)
     onacid.fit_online()
 
+    if use_parallel:
+        ## restart server (otherwise crashes)
+        cm.stop_server(dview=dview)
+        c, dview, n_processes = cm.cluster.setup_cluster(backend='local', n_processes=n_processes, single_thread=False)
+
     N = onacid.estimates.A.shape[-1]
     # print(f'\tNumber of components found: {N}')
 
     ### %% evaluate components (CNN, SNR, correlation, border-proximity)
     Yr, dims, T = cm.load_memmap(opts.get("data","fnames")[0])
     Y = np.reshape(Yr.T, [T] + list(dims), order='F')
+
+    ### it crashes here!!!
     onacid.estimates.evaluate_components(Y,opts,dview) # does this work with a memmapped file?
 
     onacid.estimates.Cn = cm.load(fname, subindices=slice(0,None,10)).local_correlations(swap_dim=False)

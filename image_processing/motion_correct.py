@@ -11,6 +11,8 @@ def motion_correct(fname,params,use_parallel=True,n_processes=None):
     """
 
     print(f"\tNow running motion correction @t = {time.ctime()}")
+    print(f"\t\tNeed to add: save statistics of motion correction, such as framewise rigid shift (what else?)")
+
     t_start = time.time()   # start time measurement from here
 
     ## initialize parameters and settings for running OnACID
