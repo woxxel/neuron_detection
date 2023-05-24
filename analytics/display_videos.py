@@ -12,7 +12,7 @@ import os, cv2
 
 ## interaction plot taken from https://stackoverflow.com/questions/46325447/animated-interactive-plot-using-matplotlib on 15.Dec.2021
 
-class tif_mov:
+class display_videos:
 
     shape = None
     dtype = None

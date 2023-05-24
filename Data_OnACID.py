@@ -232,7 +232,7 @@ def run_CaImAn_session(pathSession,params_dict,fname_start=None,    # general da
             fname = os.path.join(pathSession,f)
             if f.endswith('.h5'):
                 break
-    print(fname)
+    #print(fname)
     if not fname or not os.path.exists(fname):
         print("No file here to process :(")
         return
