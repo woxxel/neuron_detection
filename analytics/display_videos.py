@@ -12,7 +12,7 @@ import os, cv2
 
 ## interaction plot taken from https://stackoverflow.com/questions/46325447/animated-interactive-plot-using-matplotlib on 15.Dec.2021
 
-class display_videos:
+class tif_mov:
 
     shape = None
     dtype = None
@@ -36,7 +36,9 @@ class display_videos:
             self.shape = dim
             self.dtype = np.float32
             self.file = np.memmap(path,mode='r',shape=(self.shape[1]*self.shape[2],self.shape[0]),dtype=self.dtype,order='F')   # for files created by caimans NormCorr
-            self.getSlice = lambda t: np.reshape(self.file[:,t],(512,512),'F')
+            # self.file = self.file.copy()
+            # self.file = cv2.cvtColor(self.file, cv2.COLOR_BGR2RGB)
+            self.getSlice = lambda t: np.reshape(self.file[:,t],(512,512),'F').copy()
         else:
             print('not yet available')
 

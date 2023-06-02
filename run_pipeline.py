@@ -1,5 +1,5 @@
 import os, sys
-sys.path.append('CaImAn')
+sys.path.append('./CaImAn')
 
 from session_info import *
 
@@ -39,6 +39,8 @@ def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='555wt',sessions=None,n_p
 
     os.environ['MKL_NUM_THREADS'] = '1'
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
+    os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+    os.environ['CAIMAN_DATA'] = para.preprocess['caiman_datadir']
 
     for session_name in session_names:
 
@@ -70,3 +72,4 @@ def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='555wt',sessions=None,n_p
             sessionInfo.register_new("neuron_detection",path_to_neuron_detection)
         else:
             print(f"\tNeuron detection already done: {sessionInfo.get('neuron_detection')}")
+        

@@ -1,4 +1,4 @@
-import time, pickle, os
+import time, os
 import numpy as np
 import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
@@ -23,7 +23,6 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
         dview=None
         n_processes=1
 
-    # print(opts.get_group('online'))
     onacid = cnmf.online_cnmf.OnACID(params=opts,dview=dview)
     onacid.fit_online()
 
@@ -39,9 +38,10 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
     Yr, dims, T = cm.load_memmap(opts.get("data","fnames")[0])
     Y = np.reshape(Yr.T, [T] + list(dims), order='F')
 
-    ### it crashes here!!!
-    onacid.estimates.evaluate_components(Y,opts,dview) # does this work with a memmapped file?
 
+    ### it crashes here!!!
+    # return onacid
+    onacid.estimates.evaluate_components(Y,opts,dview) # does this work with a memmapped file?
     onacid.estimates.Cn = cm.load(fname, subindices=slice(0,None,10)).local_correlations(swap_dim=False)
 
     ## find and remove neurons which are too close to the border
@@ -53,7 +53,6 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
     else:
         onacid.estimates.coordinates = cm.utils.visualization.get_contours(onacid.estimates.A, dims, thr=0.2, thr_method='max')
 
-    # return onacid
     ## find and remove neurons which are too close to the border
     # try:
     idx_border = []
@@ -71,8 +70,6 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
     # update object with selected components
     onacid.estimates.select_components(use_object=True, save_discarded_components=False)
     print(f'\tNumber of components left after evaluation: {onacid.estimates.A.shape[-1]}')
-
-
 
     # print('final step: storing results...')
     # results = dict(A=onacid.estimates.A,

@@ -2,7 +2,8 @@
 preprocess = {
     'target_folder': './data',
     'tmp_folder': './data/tmp',
-    'ssh_alias': 'transfer-mpi-mdc',    # (string) name of the connection
+    'ssh_alias': 'transfer-gwdg',    # (string) name of the connection
+    'caiman_datadir': '/home/wollex/Data/Science/WolfGroup/PlaceFields/data_pipeline/CaImAn'
 }
 
 # set up CNMF parameters

@@ -292,7 +292,8 @@ def run_CaImAn_session(pathSession,params_dict,fname_start=None,    # general da
     # N_samples = np.ceil(opts.get("data","fr") * opts.get("data","decay_time")).astype(np.int)
     # comp_SNR = -norm.ppf(np.exp(fitness / N_samples))
 
-    ### %% evaluate components (CNN, SNR, correlation, border-proximity)
+    ### %% evaluate components (CNN, SNR, cor
+    relation, border-proximity)
     Yr, dims, T = cm.load_memmap(opts.get("data","fnames")[0])
     Y = np.reshape(Yr.T, [T] + list(dims), order='F')
     onacid.estimates.evaluate_components(Y,opts,dview) # does this work with a memmapped file?

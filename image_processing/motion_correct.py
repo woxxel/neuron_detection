@@ -1,6 +1,6 @@
 import time
 
-import CaImAn.caiman as cm
+import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 
