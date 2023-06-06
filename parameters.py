@@ -1,10 +1,13 @@
-
-preprocess = {
-    'target_folder': './data',
-    'tmp_folder': './data/tmp',
+system = {
     'ssh_alias': 'transfer-gwdg',    # (string) name of the connection
-    'caiman_datadir': '/home/wollex/Data/Science/WolfGroup/PlaceFields/data_pipeline/CaImAn'
+    'username': 'schmidt124',
+    'target_folder': './../data',
+    'tmp_folder': './../data/tmp',
+    # 'caiman_datadir': '/home/wollex/Data/Science/WolfGroup/PlaceFields/data_pipeline/CaImAn'
 }
+
+# preprocess = {
+# }
 
 # set up CNMF parameters
 CaImAn = {
@@ -52,10 +55,10 @@ CaImAn = {
     'thresh_CNN_noisy': 0.6,            # CNN threshold for candidate components
     'update_freq': 500,                 # update shapes at least once every update_freq steps
     'use_dense': False,
-    'path_to_model': '/home/wollex/Data/Science/WolfGroup/PlaceFields/data_pipeline/CaImAn/model/cnn_model_online.h5',
+    # 'path_to_model': '~/caiman_data/model/cnn_model_online.h5',
 
     ### display during online
-    'show_movie': True,
+    'show_movie': False,
     'save_online_movie': False,
     # 'movie_name_online': "test_mp4v.avi"
 

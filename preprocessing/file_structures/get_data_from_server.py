@@ -1,6 +1,6 @@
 import os
 
-def get_data_from_server(data_path,out_folder,ssh_alias,show_progress=True):
+def get_data_from_server(data_path,out_folder,ssh_conn,show_progress=True):
 
     """
         Pulls data from the GWDG servers using rsync
@@ -16,13 +16,14 @@ def get_data_from_server(data_path,out_folder,ssh_alias,show_progress=True):
         returns:
             nothing
     """
+
     cp_cmd = f"rsync -r "
     if show_progress:
-        cp_cmd += f"--info=progress2"
-    cp_cmd += f"-e ssh {ssh_alias}:{data_path}/images/ {out_folder}"
+        cp_cmd += f"--info=progress2 "
+    cp_cmd += f"-e ssh {ssh_conn}:{data_path}/images/ {out_folder}"
 
     if not os.path.isdir(out_folder):
         os.mkdir(out_folder)
 
-    print(f"Obtaining data from {ssh_alias}:{data_path}... (this may take ~5-10mins depending on your connection)")
+    print(f"Obtaining data from {ssh_conn}:{data_path}... (this may take ~5-10mins depending on your connection)")
     os.system(cp_cmd)

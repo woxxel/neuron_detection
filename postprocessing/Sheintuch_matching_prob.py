@@ -1210,9 +1210,6 @@ class Sheintuch_matching:
     plt.show(block=False)
 
 
-
-
-
     plt.figure()
     ax = plt.subplot(111,projection='3d')
     X, Y = np.meshgrid(fp_arr, d_arr)

@@ -73,7 +73,7 @@ def make_stack_from_single_tifs(in_folder,out_folder,file_name=None,T_max=np.inf
 
     # writing data to memmapped tif-file
     t = 0
-    for f,fname in tqdm.tqdm(enumerate(fnames)):
+    for fname in tqdm.tqdm(fnames):
         tif = TiffFile(fname)
         for page in tif.pages:
             if normalize:
