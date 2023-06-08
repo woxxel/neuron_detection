@@ -7,13 +7,15 @@ import parameters as para
 ### dont forget putting caiman_data/model/* in home folder!
 
 ## obtain input parameters
-_, mouse, path_to_session_on_cloud = sys.argv
+_, dataset, mouse, path_to_session_on_cloud, cpus = sys.argv
+n_processes = int(cpus)
+print(sys.argv)
 
 session_name = os.path.split(path_to_session_on_cloud)[-1]
-path_to_session_on_home = os.path.join(os.environ['HOME'],'data',mouse,session_name)
+path_to_session_on_home = os.path.join('/scratch/users',os.environ['USER'],'data',dataset,mouse,session_name)
 if os.path.isfile(os.path.join(path_to_session_on_home,'OnACID_results.hdf5')):
     print(f"\n\t +++ {session_name} of mouse {mouse} has already been processed - skipping +++ \n\n")
-    continue
+    exit()
 
 print(f"\n\t +++ Now processing session {session_name} of mouse {mouse} +++ \n\n")
 
@@ -21,7 +23,6 @@ print(f"\n\t +++ Now processing session {session_name} of mouse {mouse} +++ \n\n
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
-n_processes=8
 
 
 ## run processing algorithms

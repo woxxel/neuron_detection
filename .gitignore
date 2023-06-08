@@ -4,6 +4,7 @@
 
 #ignoring subfolder of CaImAn
 data/
+tmp/
 
 #ignoring pyc-files
 *.pyc
