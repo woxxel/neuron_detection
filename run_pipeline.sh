@@ -17,14 +17,11 @@ do
   mkdir -p /scratch/users/$USER/data/$dataset/$mouse
 
   ## getting all sessions of $mouse to loop through
-  #session_paths=$(find /usr/users/cidbn1/neurodyn/$dataset/$mouse/Session* -maxdepth 0 -type d)
   session_names=$(find $datapath/$dataset/$mouse/Session* -maxdepth 0 -type d -exec basename {} \;)
 
-  s=1
+  # s=1
   for session_name in $session_names
   do
-    # if test -f $HOME/data/$mouse/$session_name/OnACID_results.hdf5; then
-    # echo "testing: /scratch/users/$USER/data/$dataset/$mouse/$session_name/OnACID_results.hdf5"
     if test -f /scratch/users/$USER/data/$dataset/$mouse/$session_name/OnACID_results.hdf5; then
       # echo "$session_name already processed - skipping"
       continue
