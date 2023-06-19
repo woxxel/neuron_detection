@@ -1,11 +1,12 @@
 #!/bin/bash
 
-cpus=8
+cpus=1
 datapath='/usr/users/cidbn1/neurodyn'
 dataset="AlzheimerMice_Hayashi"
-# dataset="Shank2Mice_Hayashi"
+
 
 SUBMIT_FILE="./sbatch_submit.sh"
+ON_CLUSTER=false
 
 mice=$(find $datapath/$dataset/* -maxdepth 0 -type d -exec basename {} \;)
 # echo "Found mice in dataset $dataset: $mice"
@@ -14,6 +15,7 @@ mice=$(find $datapath/$dataset/* -maxdepth 0 -type d -exec basename {} \;)
 for mouse in $mice
 do
   # mkdir -p $HOME/data/$mouse
+  echo "Processing mouse $mouse"
   mkdir -p /scratch/users/$USER/data/$dataset/$mouse
 
   ## getting all sessions of $mouse to loop through
@@ -22,24 +24,15 @@ do
   # s=1
   for session_name in $session_names
   do
-    if test -f /scratch/users/$USER/data/$dataset/$mouse/$session_name/OnACID_results.hdf5; then
-      # echo "$session_name already processed - skipping"
-      continue
-    fi
-
-    session_path=$datapath/$dataset/$mouse/$session_name
-
-    if test -d $session_path/images; then
-      echo "Processing $session_path"
-
-      ## writing sbatch submission commands to bash-file
+    echo "Running $session_name..."
+    if $ON_CLUSTER; then
       cat > $SUBMIT_FILE <<- EOF
 #!/bin/bash
 #SBATCH -A all
 #SBATCH -p medium
 #SBATCH -c $cpus
-#SBATCH -t 02:00:00
-#SBATCH --mem=20000
+#SBATCH -t 00:05:00
+#SBATCH --mem=1000
 
 module use /usr/users/cidbn_sw/sw/modules
 module load cidbn_caiman-1.9.10_py-3.9
@@ -50,18 +43,13 @@ export OPENBLAS_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 export OMP_NUM_THREADS=1
 
-python3 ~/placefields/programs/process_session.py $dataset $mouse $session_path $cpus
+python3 ~/placefields/programs/preprocessing/align_session.py $datapath $dataset $mouse $session_name
 EOF
-
-      sbatch $SUBMIT_FILE
-      rm $SUBMIT_FILE
-    fi
-
-    ## only process first 5 sessions (for now)
-    # if [[ $s -eq 5 ]]; then
-    #   break
-    # fi
-    # ((s++))
+    sbatch $SUBMIT_FILE
+    rm $SUBMIT_FILE
+  else
+    python3 -W ignore ~/placefields/programs/preprocessing/align_session.py $datapath $dataset $mouse $session_name > /dev/null
+  fi
 
   done
 done

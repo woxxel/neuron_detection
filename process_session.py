@@ -19,17 +19,11 @@ if os.path.isfile(os.path.join(path_to_session_on_home,'OnACID_results.hdf5')):
 
 print(f"\n\t +++ Now processing session {session_name} of mouse {mouse} +++ \n\n")
 
-## set environment variables
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
-
-
 ## run processing algorithms
 path_to_stacks = make_stack_from_single_tifs(
-os.path.join(path_to_session_on_cloud,'images/'),
-os.environ['TMP_LOCAL'],
-data_type='float16',clean_after_stacking=False
+    os.path.join(path_to_session_on_cloud,'images/'),
+    os.environ['TMP_LOCAL'],
+    data_type='float16',clean_after_stacking=False
 )
 
 path_to_motion_correct = motion_correct(path_to_stacks,para.CaImAn,n_processes=n_processes)
