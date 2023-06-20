@@ -50,7 +50,7 @@ export OPENBLAS_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 export OMP_NUM_THREADS=1
 
-python3 ~/placefields/programs/process_session.py $dataset $mouse $session_path $cpus
+python3 ~/placefields/data_pipeline/process_session.py $dataset $mouse $session_path $cpus
 EOF
 
       sbatch $SUBMIT_FILE

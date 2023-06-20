@@ -43,12 +43,12 @@ export OPENBLAS_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 export OMP_NUM_THREADS=1
 
-python3 ~/placefields/programs/preprocessing/align_session.py $datapath $dataset $mouse $session_name
+python3 ~/placefields/data_pipeline/preprocessing/align_session.py $datapath $dataset $mouse $session_name
 EOF
     sbatch $SUBMIT_FILE
     rm $SUBMIT_FILE
   else
-    python3 -W ignore ~/placefields/programs/preprocessing/align_session.py $datapath $dataset $mouse $session_name > /dev/null
+    python3 -W ignore ~/placefields/data_pipeline/preprocessing/align_session.py $datapath $dataset $mouse $session_name > /dev/null
   fi
 
   done
