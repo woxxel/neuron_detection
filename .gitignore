@@ -2,6 +2,11 @@
 *.tif
 *.mmap
 
+#ignoring some other data
+*.png
+*.mat
+*.txt
+
 #ignoring subfolder of CaImAn
 data/
 tmp/

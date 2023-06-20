@@ -36,7 +36,7 @@ def align_data(server_path,dataset,mouse,session,ssh_alias=None,
     data_resampled = resample_behavior_data(data_align,T,nbins,loc_buffer=loc_buffer,speed_gauss_sd=2,speed_thr=2,binary_morph_width=5)
 
     print(f'reward @{rw_loc} with prob {rw_prob}')
-
+    
     fig,ax = plt.subplots(3,1,sharex=True,figsize=(10,4))
 
     plot_mouse_location(ax[0],data,rw_loc)
@@ -51,6 +51,8 @@ def align_data(server_path,dataset,mouse,session,ssh_alias=None,
     ax[2].plot(data_resampled['time'],speed2,'r-',lw=0.5)
     plt.setp(ax[2],ylabel='speed',xlabel='time [s]')
 
+    data_resampled['reward_location'] = rw_loc_bins
+    data_resampled['reward_prob'] = rw_prob
     if ssh_alias:
         path = f"./tmp"
     else:
