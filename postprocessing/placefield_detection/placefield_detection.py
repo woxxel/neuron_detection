@@ -178,7 +178,7 @@ class detect_PC:
 
   def get_behavior(self,T=None):
 
-
+    print(self.para['pathSession'])
     data = define_active(self.para['pathSession'])
 
     if T is None:

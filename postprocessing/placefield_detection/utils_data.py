@@ -22,33 +22,33 @@ def set_para(basePath,mouse,s,nP=0,nbin=100,plt_bool=False,sv_bool=False,suffix=
   fact = 1 ## factor from path length to bin number
 
 
-  gate_mice = ["34","35","65","66","72","839","840","841","842","879","882","884","886","67","68","91","549","551","756","757","758","918shKO","931wt","943shKO"]
-  nogate_mice = ["231","232","236","243","245","246","762","",""]
+  # gate_mice = ["34","35","65","66","72","839","840","841","842","879","882","884","886","67","68","91","549","551","756","757","758","918shKO","931wt","943shKO"]
+  # nogate_mice = ["231","232","236","243","245","246","762","",""]
 
-  zone_idx = {}
-  if any(mouse==m for m in gate_mice):        ## gate
-    zone_idx['gate'] = [18,33]
-    zone_idx['reward'] = [75,95]
-    have_gt = True;
-  elif any(mouse==m for m in nogate_mice):    ## no gate
-    zone_idx['reward'] = [50,70]#[50,66]#
-    zone_idx['gate'] = [np.NaN,np.NaN]
-    have_gt = False;
+  # zone_idx = {}
+  # if any(mouse==m for m in gate_mice):        ## gate
+  #   zone_idx['gate'] = [18,33]
+  #   zone_idx['reward'] = [75,95]
+  #   have_gt = True;
+  # elif any(mouse==m for m in nogate_mice):    ## no gate
+  #   zone_idx['reward'] = [50,70]#[50,66]#
+  #   zone_idx['gate'] = [np.NaN,np.NaN]
+  #   have_gt = False;
 
-  zone_mask = {}
-  zone_mask['reward'] = np.zeros(nbin).astype('bool')#range(zone_idx['reward'][0],zone_idx['reward'][-1])
-  zone_mask['gate'] = np.zeros(nbin).astype('bool')
-  zone_mask['others'] = np.ones(nbin).astype('bool')
+  # zone_mask = {}
+  # zone_mask['reward'] = np.zeros(nbin).astype('bool')#range(zone_idx['reward'][0],zone_idx['reward'][-1])
+  # zone_mask['gate'] = np.zeros(nbin).astype('bool')
+  # zone_mask['others'] = np.ones(nbin).astype('bool')
 
-  zone_mask['reward'][zone_idx['reward'][0]:zone_idx['reward'][-1]] = True
-  zone_mask['others'][zone_mask['reward']] = False
-  if have_gt:
-    zone_mask['gate'][zone_idx['gate'][0]:zone_idx['gate'][-1]] = True
-    zone_mask['others'][zone_mask['gate']] = False
+  # zone_mask['reward'][zone_idx['reward'][0]:zone_idx['reward'][-1]] = True
+  # zone_mask['others'][zone_mask['reward']] = False
+  # if have_gt:
+  #   zone_mask['gate'][zone_idx['gate'][0]:zone_idx['gate'][-1]] = True
+  #   zone_mask['others'][zone_mask['gate']] = False
 
-  # zone_mask['others'][40:50] = False  ## remove central wall pattern change?!
-  zone_mask['active'] = nbin+1
-  zone_mask['silent'] = nbin+2
+  # # zone_mask['others'][40:50] = False  ## remove central wall pattern change?!
+  # zone_mask['active'] = nbin+1
+  # zone_mask['silent'] = nbin+2
 
   print('now')
 
@@ -58,7 +58,7 @@ def set_para(basePath,mouse,s,nP=0,nbin=100,plt_bool=False,sv_bool=False,suffix=
           'coarse_factor':coarse_factor,
           'nbin_coarse':int(nbin/coarse_factor),
           'pxtomu':536/512,
-          'L_track':100,
+          'L_track':120,
 
           'rate_thr':4,
           'width_thr':5,
@@ -68,10 +68,11 @@ def set_para(basePath,mouse,s,nP=0,nbin=100,plt_bool=False,sv_bool=False,suffix=
 
           'Ca_thr':0,
 
-          't_measures': get_t_measures(mouse),
+          # 't_measures': get_t_measures(mouse),
 
           'nP':nP,
-          'N_bs':10000,'repnum':1000,
+          'N_bs':10000,
+          'repnum':1000,
           'qtl_steps':qtl_steps,'sigma':5,
           'qtl_weight':np.ones(qtl_steps)/qtl_steps,
           'names':['A_0','A','SD','theta'],
@@ -99,8 +100,8 @@ def set_para(basePath,mouse,s,nP=0,nbin=100,plt_bool=False,sv_bool=False,suffix=
                     'shuffle':'shuffle_trials'     ## how to shuffle: 'shuffle_trials', 'shuffle_global', 'randomize'
                   },
 
-          'zone_idx':zone_idx,
-          'zone_mask':zone_mask
+          # 'zone_idx':zone_idx,
+          # 'zone_mask':zone_mask
           }
 
 

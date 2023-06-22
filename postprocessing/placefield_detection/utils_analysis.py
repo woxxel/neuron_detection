@@ -129,27 +129,34 @@ def define_active(pathSession,f=15,plot_bool=False):
     data = {}
     pathBH = None
     for file in os.listdir(pathSession):
-      if file.endswith("aligned.mat"):
+    #   if file.endswith("aligned.mat"):
+      if file.endswith("aligned_behavior.pkl"):
           pathBH = os.path.join(pathSession, file)
     if pathBH is None:
         return
-    fLoad = h5py.File(pathBH,'r')
+    
+    ### load data
+    with open(pathBH,'rb') as f:
+        data = pickle.load(f)
+    print(data)
 
-    position = np.squeeze(fLoad.get('alignedData/resampled/position').value)
-    data['time'] = np.squeeze(fLoad.get('alignedData/resampled/time').value)
-    fLoad.close()
-    position -= position.min()
-    position /= position.max()*1.001    ## avoid maximum value being in too high bin
-    position *= 100
-    data['position'] = position
+    # fLoad = h5py.File(pathBH,'r')
+    # position = np.squeeze(fLoad.get('alignedData/resampled/position').value)
+    # data['time'] = np.squeeze(fLoad.get('alignedData/resampled/time').value)
+    # fLoad.close()
+    data['position'] = data['bins']
+    # position -= position.min()
+    # position /= position.max()*1.001    ## avoid maximum value being in too high bin
+    # position *= 100
+    # data['position'] = position
 
-    velocity = np.diff(np.append(data['position'][0],data['position']))*f
-    velocity[velocity<0] = 0
-    data['velocity'] = sp.ndimage.gaussian_filter(velocity,2)
+    # velocity = np.diff(data['position'],prepend=data['position'][0])*f
+    # velocity[velocity<0] = 0
+    # data['velocity'] = sp.ndimage.gaussian_filter(velocity,2)
 
     ## get time spent running / active
-    data['active'] = sp.ndimage.binary_closing(velocity>0.5,structure=np.ones(int(f/2)),border_value=True)
-    data['active'] = sp.ndimage.binary_opening(data['active'],structure=np.ones(int(f/2)))
+    # data['active'] = sp.ndimage.binary_closing(velocity>0.5,structure=np.ones(int(f/2)),border_value=True)
+    # data['active'] = sp.ndimage.binary_opening(data['active'],structure=np.ones(int(f/2)))
     # data['active'][position<1] = False
     # data['active'][position>98] = False
 
