@@ -260,7 +260,7 @@ def align_behavior_data(data,
     loc_aligned[loc_aligned>max_val] = max_val
 
     data_aligned['position'] = loc_aligned
-    
+
     return data_aligned, rw_loc, rw_prob
 
 
@@ -286,13 +286,13 @@ def resample_behavior_data(data,
         pos_tmp[idx+1:] = pos_tmp[idx+1:] + loc_dist
 
     data_resampled = {
-        'frame': np.linspace(0,T,T),
+        'frame': np.linspace(1,T,T).astype('int'),
         'time': np.zeros(T),
         'position': np.zeros(T),
         'velocity_ref': np.zeros(T),
         'velocity': None,
-        'trial_idx': None,
         'reward': np.zeros(T,dtype='bool'),
+        'trials': {},
     }
 
     fs = np.unique(data['frame'])
@@ -313,11 +313,10 @@ def resample_behavior_data(data,
     data_resampled['position'] = np.mod(data_resampled['position']+loc_buffer/2,loc_dist)
     data_resampled['bin_position'] = (data_resampled['position'] / (max_val - min_val) * nbins).astype('int')
 
-    data_resampled['position'] -= min_val
+    data_resampled['position'] += min_val
 
-    data_resampled['trial_idx'] = np.append(0,np.where(np.diff(data_resampled['position'])<(-loc_dist/2))[0] + 1)
     
-
+    ## define active data points
     data_resampled['velocity'] = gauss_filter(np.maximum(0,np.diff(data_resampled['position'],prepend=data_resampled['position'][0])),speed_gauss_sd)* 120/loc_dist * 15
     inactive = np.logical_or(
         data_resampled['velocity_ref'] <= speed_thr,
@@ -336,7 +335,6 @@ def plot_mouse_location(ax,data,rw_loc=0):
     max_val = np.nanmax(loc)
 
     loc_dist = max_val - min_val
-    print(min_val,max_val,loc_dist)
 
     # identify location of trial-starts
     trial_idx = np.where(np.diff(loc)<(-loc_dist/2))[0]

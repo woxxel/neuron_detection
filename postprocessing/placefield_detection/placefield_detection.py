@@ -180,7 +180,7 @@ class detect_PC:
 
     print(self.para['pathSession'])
     data = define_active(self.para['pathSession'])
-
+    
     if T is None:
       T = data['time'].shape[0]
     self.dataBH = {}

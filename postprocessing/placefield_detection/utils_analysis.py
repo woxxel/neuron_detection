@@ -138,41 +138,24 @@ def define_active(pathSession,f=15,plot_bool=False):
     ### load data
     with open(pathBH,'rb') as f:
         data = pickle.load(f)
-    print(data)
 
-    # fLoad = h5py.File(pathBH,'r')
-    # position = np.squeeze(fLoad.get('alignedData/resampled/position').value)
-    # data['time'] = np.squeeze(fLoad.get('alignedData/resampled/time').value)
-    # fLoad.close()
-    data['position'] = data['bins']
-    # position -= position.min()
-    # position /= position.max()*1.001    ## avoid maximum value being in too high bin
-    # position *= 100
-    # data['position'] = position
+    min_val,max_val = np.nanpercentile(data['bin_position'],(0.1,99.9))
+    loc_dist = max_val - min_val 
 
-    # velocity = np.diff(data['position'],prepend=data['position'][0])*f
-    # velocity[velocity<0] = 0
-    # data['velocity'] = sp.ndimage.gaussian_filter(velocity,2)
-
-    ## get time spent running / active
-    # data['active'] = sp.ndimage.binary_closing(velocity>0.5,structure=np.ones(int(f/2)),border_value=True)
-    # data['active'] = sp.ndimage.binary_opening(data['active'],structure=np.ones(int(f/2)))
-    # data['active'][position<1] = False
-    # data['active'][position>98] = False
-
-    idx_teleport = np.where(np.diff(data['position'])<-10)[0]+1
-    if not (data['position'][0] < 5):
-        data['active'][:max(0,idx_teleport[0]+1)] = False
-
-    if not (data['position'][-1] >= 95):
-        data['active'][idx_teleport[-1]:] = False
-
+    ## define trials    
     data['trials'] = {}
-    idx_trial_start = np.hstack([0,np.where(np.diff(data['position'][data['active']])<-10)[0]+1,data['active'].sum()-1])
-    frames = np.arange(len(data['time']))
-    frames_active = frames[data['active']]
-    data['trials']['frame'] = frames_active[idx_trial_start]
-    data['trials']['ct'] = len(data['trials']['frame'])-1
+    data['trials']['start'] = np.append(0,np.where(np.diff(data['bin_position'])<(-loc_dist/2))[0] + 1)
+
+    ## remove half trials from data
+    if not (data['bin_position'][0] < 10):
+        data['active'][:max(0,data['trials']['start'][0])] = False
+
+    if not (data['bin_position'][-1] >= 90):
+        data['active'][data['trials']['start'][-1]:] = False
+    
+    pos_active = data['bin_position'][data['active']]
+    data['trials']['start_active'] = np.append(0,np.where(np.diff(pos_active)<(-loc_dist/2))[0] + 1)
+    data['trials']['ct'] = len(data['trials']['start_active'])
 
     if plot_bool:
         plt.figure(dpi=300)
