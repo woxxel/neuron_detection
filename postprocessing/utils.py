@@ -31,7 +31,6 @@ def find_modes(data,axis=None,sort_it=True):
   return dataMode
 
 
-
 def _hsm(data):
   ### adapted from caiman
   ### Robust estimator of the mode of a data set using the half-sample mode.
@@ -479,7 +478,7 @@ def calculate_img_correlation(A1,A2,dims=(512,512),crop=False,cm_crop=None,binar
       plt.plot(crop_half[1],crop_half[0],'ro')
       plt.colorbar()
       plt.suptitle('corr: %5.3g'%C_max)
-      plt.show(block=True)
+      plt.show(block=False)
 
     return C_max, img_shift # C[crop_half],
   else:

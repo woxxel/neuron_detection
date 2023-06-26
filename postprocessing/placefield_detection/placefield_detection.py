@@ -1,4 +1,7 @@
-import os, random, h5py, time, math, cmath, copy, importlib, warnings, pickle
+import os, random, h5py, time, math, cmath, copy, importlib, warnings, pickle, sys
+sys.path.append('./CaImAn')
+
+from caiman.utils.utils import load_dict_from_hdf5
 import multiprocessing as mp
 from multiprocessing import get_context
 
@@ -58,10 +61,14 @@ class detect_PC:
         S, other = load_activity(self.para['pathSession'],dataSet=dataSet)
 
         if dataSet == 'redetect':
-            idx_evaluate = other[0]
-            idx_previous = other[1]
-            SNR = other[2]
-            r_values = other[3]
+          idx_evaluate = other[0]
+          idx_previous = other[1]
+          SNR = other[2]
+          r_values = other[3]
+        else:
+          nCells = S.shape[0]
+          SNR = np.zeros(nCells)*np.NaN
+          r_values = np.zeros(nCells)*np.NaN
     else:
         nCells = S.shape[0]
         SNR = np.zeros(nCells)*np.NaN
@@ -178,48 +185,84 @@ class detect_PC:
 
   def get_behavior(self,T=None):
 
-    print(self.para['pathSession'])
-    data = define_active(self.para['pathSession'])
+    # print(self.para['pathSession'])
+    data = {}
+    pathBH = None
+    for file in os.listdir(self.para['pathSession']):
+    #   if file.endswith("aligned.mat"):
+      if file.endswith("aligned_behavior.pkl"):
+          pathBH = os.path.join(self.para['pathSession'], file)
+    if pathBH is None:
+        return
     
+    ### load data
+    with open(pathBH,'rb') as f:
+        data = pickle.load(f)
+
     if T is None:
       T = data['time'].shape[0]
     self.dataBH = {}
+
+    ## first, handing over some general data
     self.dataBH['active'] = data['active']
     self.dataBH['time'] = data['time']
-    self.dataBH['velocity'] = data['velocity']/self.para['nbin']*self.para['L_track']
+    self.dataBH['position'] = data['position']
 
-    self.dataBH['position'] = data['position']/data['position'].max()*self.para['L_track']
-    self.dataBH['binpos'] = data['position'].astype('int')
+    # self.dataBH['velocity'] = data['velocity']/self.para['nbin']*self.para['L_track']
+    # self.dataBH['position'] = data['position']/data['position'].max()*self.para['L_track']
 
-    nbin_coarse = (self.para['nbin']/self.para['coarse_factor'])
-    self.dataBH['binpos_coarse'] = (data['position']*nbin_coarse/(data['position'].max()*1.001)).astype('int')
+    ## apply binning
+    min_val,max_val = np.nanpercentile(data['position'],(0.1,99.9))
+    loc_dist = max_val - min_val
 
-    self.dataBH['binpos_active'] = self.dataBH['binpos'][data['active']]
-    self.dataBH['binpos_coarse_active'] = self.dataBH['binpos_coarse'][data['active']]
-
-    self.dataBH['time_active'] = self.dataBH['time'][data['active']]
-    self.dataBH['T'] = np.count_nonzero(data['active'])
+    self.dataBH['binpos'] = np.minimum((data['position'] - min_val) / loc_dist * self.para['nbin'],self.para['nbin']-1).astype('int')
+    self.dataBH['binpos_coarse'] = np.minimum((data['position']-min_val) / loc_dist * self.para['nbin_coarse'],self.para['nbin_coarse']-1).astype('int')
 
 
-    ###### define trials
+    ## define trials
     self.dataBH['trials'] = {}
-    #self.dataBH['trials']['frame_raw'] = np.where(np.diff(self.dataBH['binpos'])<-10)[0]+1
-    self.dataBH['trials']['frame'] = np.hstack([0, np.where(np.diff(self.dataBH['binpos_active'])<-10)[0]+1,len(self.dataBH['time_active'])])
+    self.dataBH['trials']['start'] = np.hstack([0,np.where(np.diff(data['position'])<(-loc_dist/2))[0] + 1,len(self.dataBH['time'])-1])
 
-    self.dataBH['trials']['t'] = np.hstack([self.dataBH['time_active'][self.dataBH['trials']['frame'][:-1]],self.dataBH['time_active'][self.dataBH['trials']['frame'][-1]-1]])
-    #dt = np.diff(self.dataBH['trials']['t'])
+    ## remove half trials from data
+    if not (self.dataBH['binpos'][0] < self.para['nbin']*0.1):
+        self.dataBH['active'][:max(0,self.dataBH['trials']['start'][0])] = False
 
-    self.dataBH['trials']['ct'] = len(self.dataBH['trials']['frame'])-1
+    if not (self.dataBH['binpos'][-1] >= self.para['nbin']*0.9):
+        self.dataBH['active'][self.dataBH['trials']['start'][-1]:] = False
+
+    self.dataBH['nFrames'] = np.count_nonzero(self.dataBH['active'])
+
+
+    ## defining active time periods
+    self.dataBH['binpos_active'] = self.dataBH['binpos'][self.dataBH['active']]
+    self.dataBH['binpos_coarse_active'] = self.dataBH['binpos_coarse'][self.dataBH['active']]
+    self.dataBH['time_active'] = self.dataBH['time'][self.dataBH['active']]
+
+    ## define start points
+    self.dataBH['trials']['start_active'] = np.hstack([0,np.where(np.diff(self.dataBH['binpos_active'])<(-self.para['nbin']/2))[0] + 1,self.dataBH['active'].sum()])
+    self.dataBH['trials']['start_active_t'] = self.dataBH['time'][self.dataBH['active']][self.dataBH['trials']['start_active'][:-1]]
+    self.dataBH['trials']['ct'] = len(self.dataBH['trials']['start_active']) - 1
+
+
+    ## getting trial-specific behavior data
     self.dataBH['trials']['dwelltime'] = np.zeros((self.dataBH['trials']['ct'],self.para['nbin']))
-    self.dataBH['trials']['T'] = np.zeros(self.dataBH['trials']['ct']).astype('int')
+    self.dataBH['trials']['nFrames'] = np.zeros(self.dataBH['trials']['ct']).astype('int')
 
     t_offset = 0
     self.dataBH['trials']['trial'] = {}
     for t in range(self.dataBH['trials']['ct']):
       self.dataBH['trials']['trial'][t] = {}
-      self.dataBH['trials']['trial'][t]['binpos_active'] = self.dataBH['binpos_active'][self.dataBH['trials']['frame'][t]:self.dataBH['trials']['frame'][t+1]]
+      self.dataBH['trials']['trial'][t]['binpos_active'] = self.dataBH['binpos_active'][self.dataBH['trials']['start_active'][t]:self.dataBH['trials']['start_active'][t+1]]
       self.dataBH['trials']['dwelltime'][t,:] = np.histogram(self.dataBH['trials']['trial'][t]['binpos_active'],self.para['bin_array_centers'])[0]/self.para['f']
-      self.dataBH['trials']['T'][t] = len(self.dataBH['trials']['trial'][t]['binpos_active'])
+      self.dataBH['trials']['nFrames'][t] = len(self.dataBH['trials']['trial'][t]['binpos_active'])
+    
+
+    #self.dataBH['trials']['frame_raw'] = np.where(np.diff(self.dataBH['binpos'])<-10)[0]+1
+    # self.dataBH['trials']['frame'] = np.hstack([0, np.where(np.diff(self.dataBH['binpos_active'])<-10)[0]+1,len(self.dataBH['time_active'])])
+
+    # self.dataBH['trials']['t'] = np.hstack([self.dataBH['time_active'][self.dataBH['trials']['start_active'][:-1]],self.dataBH['time_active'][self.dataBH['trials']['start_active'][-1]-1]])
+    #dt = np.diff(self.dataBH['trials']['t'])
+    # self.dataBH['trials']['t_start'] = self.dataBH['time_active'][]
     return self.dataBH
 
 
@@ -234,88 +277,88 @@ class detect_PC:
       result['status']['r_value'] = r_value
 
     T = S.shape[0]
-    try:
-      active, result['firingstats']['rate'] = self.get_active_Ca(S)
+    # try:
+    active, result['firingstats']['rate'] = self.get_active_Ca(S)
 
-      # if (result['status']['SNR'] < 2) | (results['r_value'] < 0):
-      #     print('component not considered to be proper neuron')
-      #     return
+    # if (result['status']['SNR'] < 2) | (results['r_value'] < 0):
+    #     print('component not considered to be proper neuron')
+    #     return
 
-      if result['firingstats']['rate']==0:
-        print('no activity for this neuron')
-        return result
+    if result['firingstats']['rate']==0:
+      print('no activity for this neuron')
+      return result
 
-      ### get trial-specific activity and overall firingmap stats
-      trials_S, result['firingstats']['trial_map'] = self.get_trials_activity(active)
+    ### get trial-specific activity and overall firingmap stats
+    trials_S, result['firingstats']['trial_map'] = self.get_trials_activity(active)
 
-      ## obtain mutual information first - check if (computational cost of) finding fields is worth it at all
-      t_start = time.time()
-      if self.para['modes']['info']:
-        MI_tmp = self.test_MI(active,trials_S)
-        for key in MI_tmp.keys():
-          result['status'][key] = MI_tmp[key]
-      #print('time taken (information): %.4f'%(time.time()-t_start))
+    ## obtain mutual information first - check if (computational cost of) finding fields is worth it at all
+    t_start = time.time()
+    if self.para['modes']['info']:
+      MI_tmp = self.test_MI(active,trials_S)
+      for key in MI_tmp.keys():
+        result['status'][key] = MI_tmp[key]
+    #print('time taken (information): %.4f'%(time.time()-t_start))
 
-      result = self.get_correlated_trials(result,smooth=2)
-      # print(result['firingstats']['trial_field'])
-      # return
+    result = self.get_correlated_trials(result,smooth=2)
+    # print(result['firingstats']['trial_field'])
+    # return
 
-      firingstats_tmp = self.get_firingstats_from_trials(result['firingstats']['trial_map'])
-      for key in firingstats_tmp.keys():
-        result['firingstats'][key] = firingstats_tmp[key]
-      # return
-      if np.any(result['firingstats']['trial_field']) and ((result['status']['SNR']>2) or np.isnan(result['status']['SNR'])):  # and (result['status']['MI_value']>0.1)     ## only do further processing, if enough trials are significantly correlated
-        for t in range(5):
-            trials = np.where(result['firingstats']['trial_field'][t,:])[0]
-            if len(trials)<1:
-                continue
+    firingstats_tmp = self.get_firingstats_from_trials(result['firingstats']['trial_map'])
+    for key in firingstats_tmp.keys():
+      result['firingstats'][key] = firingstats_tmp[key]
+    # return
+    # if np.any(result['firingstats']['trial_field']) and ((result['status']['SNR']>2) or np.isnan(result['status']['SNR'])):  # and (result['status']['MI_value']>0.1)     ## only do further processing, if enough trials are significantly correlated
+    for t in range(5):
+        trials = np.where(result['firingstats']['trial_field'][t,:])[0]
+        if len(trials)<1:
+            continue
 
-            firingstats_tmp = self.get_firingstats_from_trials(result['firingstats']['trial_map'],trials,complete=False)
+        firingstats_tmp = self.get_firingstats_from_trials(result['firingstats']['trial_map'],trials,complete=False)
 
-          #print(gauss_smooth(firingstats_tmp['map'],2))
+      #print(gauss_smooth(firingstats_tmp['map'],2))
 
-          # if (gauss_smooth(firingstats_tmp['map'],4)>(self.para['rate_thr']/2)).sum()>self.para['width_thr']:
+      # if (gauss_smooth(firingstats_tmp['map'],4)>(self.para['rate_thr']/2)).sum()>self.para['width_thr']:
 
-            ### do further tests only if there is "significant" mutual information
+        ### do further tests only if there is "significant" mutual information
 
-            for f in range(self.f_max+1):
-                field = self.run_nestedSampling(result['firingstats'],firingstats_tmp['map'],f)
+        for f in range(self.f_max+1):
+            field = self.run_nestedSampling(result['firingstats'],firingstats_tmp['map'],f)
 
-            ## pick most prominent peak and store into result, if bayes factor > 1/2
-            if field['Bayes_factor'][0] > 0:
+        ## pick most prominent peak and store into result, if bayes factor > 1/2
+        if field['Bayes_factor'][0] > 0:
 
-                dTheta = np.abs(np.mod(field['parameter'][3,0]-result['fields']['parameter'][:t,3,0]+self.para['L_track']/2,self.para['L_track'])-self.para['L_track']/2)
-                if not np.any(dTheta < 10):   ## should be in cm
-                    ## store results into array index "t"
-                    for key in field.keys():#['parameter','p_x','posterior_mass']:
-                        result['fields'][key][t,...] = field[key]
-                    result['fields']['nModes'] += 1
+            dTheta = np.abs(np.mod(field['parameter'][3,0]-result['fields']['parameter'][:t,3,0]+self.para['L_track']/2,self.para['L_track'])-self.para['L_track']/2)
+            if not np.any(dTheta < 10):   ## should be in cm
+                ## store results into array index "t"
+                for key in field.keys():#['parameter','p_x','posterior_mass']:
+                    result['fields'][key][t,...] = field[key]
+                result['fields']['nModes'] += 1
 
-                    ## reliability is calculated later
-                    result['fields']['reliability'][t], _, _ = get_reliability(result['firingstats']['trial_map'],result['firingstats']['map'],result['fields']['parameter'],t)
+                ## reliability is calculated later
+                result['fields']['reliability'][t], _, _ = get_reliability(result['firingstats']['trial_map'],result['firingstats']['map'],result['fields']['parameter'],t)
 
-                    if self.para['plt_bool']:
-                        self.plt_results(result,t)
+                if self.para['plt_bool']:
+                    self.plt_results(result,t)
 
-      t_process = time.time()-t_start
+    t_process = time.time()-t_start
 
-      #print('get spikeNr - time taken: %5.3g'%(t_end-t_start))
-      print_msg = 'p-value: %.2f, value (MI/Isec): %.2f / %.2f, '%(result['status']['MI_p_value'],result['status']['MI_value'],result['status']['Isec_value'])
+    #print('get spikeNr - time taken: %5.3g'%(t_end-t_start))
+    print_msg = 'p-value: %.2f, value (MI/Isec): %.2f / %.2f, '%(result['status']['MI_p_value'],result['status']['MI_value'],result['status']['Isec_value'])
 
-      if result['fields']['nModes']>0:
-        print_msg += ' \t Bayes factor (reliability) :'
-        for f in np.where(result['fields']['Bayes_factor']>1/2)[0]:#range(result['fields']['nModes']):
-          print_msg += '\t (%d): %.2f+/-%.2f (%.2f), '%(f+1,result['fields']['Bayes_factor'][f,0],result['fields']['Bayes_factor'][f,1],result['fields']['reliability'][f])
-      if not(SNR is None):
-        print_msg += '\t SNR: %.2f, \t r_value: %.2f'%(SNR,r_value)
-      print_msg += ' \t time passed: %.2fs'%t_process
-      print(print_msg)
+    if result['fields']['nModes']>0:
+      print_msg += ' \t Bayes factor (reliability) :'
+      for f in np.where(result['fields']['Bayes_factor']>1/2)[0]:#range(result['fields']['nModes']):
+        print_msg += '\t (%d): %.2f+/-%.2f (%.2f), '%(f+1,result['fields']['Bayes_factor'][f,0],result['fields']['Bayes_factor'][f,1],result['fields']['reliability'][f])
+    if not(SNR is None):
+      print_msg += '\t SNR: %.2f, \t r_value: %.2f'%(SNR,r_value)
+    print_msg += ' \t time passed: %.2fs'%t_process
+    print(print_msg)
 
       #except (KeyboardInterrupt, SystemExit):
         #raise
-    except:# KeyboardInterrupt: #:# TypeError:#
-      print('analysis failed: (-)')# p-value (MI): %.2f, \t bayes factor: %.2fg+/-%.2fg'%(result['status']['MI_p_value'],result['status']['Bayes_factor'][0,0],result['status']['Bayes_factor'][0,1]))
-      #result['fields']['nModes'] = -1
+    # except:# KeyboardInterrupt: #:# TypeError:#
+    #   print('analysis failed: (-)')# p-value (MI): %.2f, \t bayes factor: %.2fg+/-%.2fg'%(result['status']['MI_p_value'],result['status']['Bayes_factor'][0,0],result['status']['Bayes_factor'][0,1]))
+    #   #result['fields']['nModes'] = -1
 
     return result#,sampler
 
@@ -355,7 +398,7 @@ class detect_PC:
     cluster_idx = sp.cluster.hierarchy.cut_tree(res_linkage,height=0.5)
     _, c_counts = np.unique(cluster_idx,return_counts=True)
     c_trial = np.where((c_counts>self.para['trials_min_count']) & (c_counts>(self.para['trials_min_fraction']*self.dataBH['trials']['ct'])))[0]
-
+    # print('cluster',corr)
     for (i,t) in enumerate(c_trial):
         fmap = gauss_smooth(np.nanmean(result['firingstats']['trial_map'][cluster_idx.T[0]==t,:],0),2)
         # baseline = np.percentile(fmap[fmap>0],20)
@@ -882,16 +925,16 @@ class detect_PC:
     trials_S = {}
     for t in range(self.dataBH['trials']['ct']):
       trials_S[t] = {}
-      trials_S[t]['S'] = active['S'][self.dataBH['trials']['frame'][t]:self.dataBH['trials']['frame'][t+1]]#gauss_smooth(active['S'][self.dataBH['trials']['frame'][t]:self.dataBH['trials']['frame'][t+1]]*self.para['f'],self.para['f']);    ## should be quartiles?!
+      trials_S[t]['S'] = active['S'][self.dataBH['trials']['start_active'][t]:self.dataBH['trials']['start_active'][t+1]]#gauss_smooth(active['S'][self.dataBH['trials']['frame'][t]:self.dataBH['trials']['frame'][t+1]]*self.para['f'],self.para['f']);    ## should be quartiles?!
       if self.para['modes']['info'] == 'MI':
-        trials_S[t]['qtl'] = active['qtl'][self.dataBH['trials']['frame'][t]:self.dataBH['trials']['frame'][t+1]];    ## should be quartiles?!
+        trials_S[t]['qtl'] = active['qtl'][self.dataBH['trials']['start_active'][t]:self.dataBH['trials']['start_active'][t+1]];    ## should be quartiles?!
 
       if self.para['modes']['activity'] == 'spikes':
         trials_S[t]['spike_times'] = np.where(trials_S[t]['S']);
         trials_S[t]['spikes'] = trials_S[t]['S'][trials_S[t]['spike_times']];
         trials_S[t]['ISI'] = np.diff(trials_S[t]['spike_times']);
 
-      trials_S[t]['rate'] = trials_S[t]['S'].sum()/(self.dataBH['trials']['T'][t]/self.para['f']);
+      trials_S[t]['rate'] = trials_S[t]['S'].sum()/(self.dataBH['trials']['nFrames'][t]/self.para['f']);
 
       if trials_S[t]['rate'] > 0:
         trials_map[t,:] = self.get_firingmap(trials_S[t]['S'],self.dataBH['trials']['trial'][t]['binpos_active'],self.dataBH['trials']['dwelltime'][t,:])#/trials_S[t]['rate']
@@ -934,7 +977,7 @@ class detect_PC:
 
       ### fit linear dependence of noise on amplitude (with 0 noise at fr=0)
       firingstats['parNoise'] = jackknife(firingstats['map'],firingstats['std'])
-      print()
+      
       if self.para['plt_theory_bool'] and self.para['plt_bool']:
         self.plt_model_selection(firingmap_bs,firingstats,trials_firingmap)
 
@@ -1076,7 +1119,7 @@ class detect_PC:
 
     frate = gauss_smooth(active['S']*self.para['f'],self.para['sigma'])
 
-    pos_act = self.dataBH['position'][self.dataBH['active']]
+    # pos_act = self.dataBH['position'][self.dataBH['active']]
 
     MI['MI_value'] = self.get_info_value(active[S_key],norm_dwelltime_coarse,mode='MI')
     MI['Isec_value'] = self.get_info_value(frate,norm_dwelltime_coarse,mode='Isec')
@@ -1091,7 +1134,7 @@ class detect_PC:
         ## trial shuffling
         trials = np.random.permutation(trial_ct)
 
-        shuffled_activity_qtl = np.roll(np.hstack([np.roll(trials_S[t][S_key],int(random.random()*self.dataBH['trials']['T'][t])) for t in trials]),int(random.random()*self.dataBH['T']))
+        shuffled_activity_qtl = np.roll(np.hstack([np.roll(trials_S[t][S_key],int(random.random()*self.dataBH['trials']['nFrames'][t])) for t in trials]),int(random.random()*self.dataBH['nFrames']))
 
         #shuffled_activity_S = np.roll(np.hstack([np.roll(trials_S[t]['S'],int(random.random()*self.dataBH['trials']['T'][t])) for t in trials]),int(random.random()*self.dataBH['T']))
 
@@ -1099,7 +1142,7 @@ class detect_PC:
 
       elif self.para['modes']['shuffle'] == 'shuffle_global':
         if self.para['modes']['activity'] == 'spikes':
-          shuffled_activity = shuffling('dithershift',shuffle_peaks,spike_times=spike_times,spikes=spikes,T=self.dataBH['T'],ISI=ISI,w=2*self.para['f'])
+          shuffled_activity = shuffling('dithershift',shuffle_peaks,spike_times=spike_times,spikes=spikes,T=self.dataBH['nFrames'],ISI=ISI,w=2*self.para['f'])
         else:
           shuffled_activity = shuffling('shift',shuffle_peaks,spike_train=active[S_key])
 
@@ -1439,16 +1482,16 @@ class detect_PC:
         ax_trial_act.set_xticks([])
         ax_trial_act.set_yticks([])
 
-    ax_loc.plot(self.dataBH['time'],self.dataBH['position'],'.',color=[0.6,0.6,0.6],zorder=5,markeredgewidth=0,markersize=1)
+    ax_loc.plot(self.dataBH['time'],self.dataBH['binpos'],'.',color=[0.6,0.6,0.6],zorder=5,markeredgewidth=0,markersize=1)
     idx_active = (S>0) & self.dataBH['active']
     idx_inactive = (S>0) & ~self.dataBH['active']
 
     t_active = self.dataBH['time'][idx_active]
-    pos_active = self.dataBH['position'][idx_active]
+    pos_active = self.dataBH['binpos'][idx_active]
     S_active = S[idx_active]
 
     t_inactive = self.dataBH['time'][idx_inactive]
-    pos_inactive = self.dataBH['position'][idx_inactive]
+    pos_inactive = self.dataBH['binpos'][idx_inactive]
     S_inactive = S[idx_inactive]
     if activity_mode == 'spikes':
         ax_loc.scatter(t_active,pos_active,s=S_active,c='r',zorder=10)
@@ -1527,8 +1570,10 @@ class detect_PC:
     fig = plt.figure(figsize=(7,5),dpi=150)
 
     ## get data
-    pathDat = os.path.join(self.para['pathSession'],'results_redetect.mat')
-    ld = loadmat(pathDat,variable_names=['S','C'])
+    # pathDat = os.path.join(self.para['pathSession'],'results_redetect.mat')
+    pathDat = os.path.join(self.para['pathSession'],'OnACID_results.hdf5')
+    ld = load_dict_from_hdf5(pathDat)
+    # ld = loadmat(pathDat,variable_names=['S','C'])
 
     C = ld['C'][self.para['n'],:]
 
@@ -1540,9 +1585,9 @@ class detect_PC:
     else:
       S = S_raw
 
-    t_start = 200#0#
-    t_end = 470# 600#
-    n_trial = 12
+    t_start = 0#
+    t_end = 600#
+    n_trial = 6
 
     ax_Ca = plt.axes([0.1,0.75,0.5,0.175])
     add_number(fig,ax_Ca,order=1)
@@ -1562,7 +1607,7 @@ class detect_PC:
     t_stop = self.dataBH['time'][~idx_longrun]
     ax_Ca.bar(t_stop,np.ones(len(t_stop))*1.2*S_raw.max(),color=[0.9,0.9,0.9],zorder=0)
 
-    ax_Ca.fill_between([self.dataBH['trials']['t'][n_trial],self.dataBH['trials']['t'][n_trial+1]],[0,0],[1.2*S_raw.max(),1.2*S_raw.max()],color=[0,0,1,0.2],zorder=1)
+    ax_Ca.fill_between([self.dataBH['trials']['start_active_t'][n_trial],self.dataBH['trials']['start_active_t'][n_trial+1]],[0,0],[1.2*S_raw.max(),1.2*S_raw.max()],color=[0,0,1,0.2],zorder=1)
 
     ax_Ca.plot(self.dataBH['time'],C,'k',linewidth=0.2)
     ax_Ca.plot(self.dataBH['time'],S_raw,'r',linewidth=1)
@@ -1574,16 +1619,16 @@ class detect_PC:
     ax_Ca.set_yticks([])
 
 
-    ax_loc.plot(self.dataBH['time'],self.dataBH['position'],'.',color='k',zorder=5,markeredgewidth=0,markersize=1.5)
+    ax_loc.plot(self.dataBH['time'],self.dataBH['binpos'],'.',color='k',zorder=5,markeredgewidth=0,markersize=1.5)
     idx_active = (S>0) & self.dataBH['active']
     idx_inactive = (S>0) & ~self.dataBH['active']
 
     t_active = self.dataBH['time'][idx_active]
-    pos_active = self.dataBH['position'][idx_active]
+    pos_active = self.dataBH['binpos'][idx_active]
     S_active = S[idx_active]
 
     t_inactive = self.dataBH['time'][idx_inactive]
-    pos_inactive = self.dataBH['position'][idx_inactive]
+    pos_inactive = self.dataBH['binpos'][idx_inactive]
     S_inactive = S[idx_inactive]
     if self.para['modes']['activity'] == 'spikes':
       ax_loc.scatter(t_active,pos_active,s=3,color='r',zorder=10)
@@ -1592,7 +1637,7 @@ class detect_PC:
       ax_loc.scatter(t_active,pos_active,s=(S_active/S.max())**2*10+0.1,color='r',zorder=10)
       ax_loc.scatter(t_inactive,pos_inactive,s=(S_inactive/S.max())**2*10+0.1,color='k',zorder=10)
     ax_loc.bar(t_stop,np.ones(len(t_stop))*self.para['L_track'],width=1/15,color=[0.9,0.9,0.9],zorder=0)
-    ax_loc.fill_between([self.dataBH['trials']['t'][n_trial],self.dataBH['trials']['t'][n_trial+1]],[0,0],[self.para['L_track'],self.para['L_track']],color=[0,0,1,0.2],zorder=1)
+    ax_loc.fill_between([self.dataBH['trials']['start_active_t'][n_trial],self.dataBH['trials']['start_active_t'][n_trial+1]],[0,0],[self.para['L_track'],self.para['L_track']],color=[0,0,1,0.2],zorder=1)
 
     ax_loc.set_ylim([0,self.para['L_track']])
     ax_loc.set_xlim([t_start,t_end])
@@ -1611,8 +1656,8 @@ class detect_PC:
       #acorr = np.correlate(ld['S'][n,:],ld['S'][n,:],mode='full')[T-1:T+lags]
       #ax_acorr.plot(t,acorr/acorr[0])
       ax_acorr.plot(t,acorr,linewidth=0.5)
-    for T in self.dataBH['trials']['T']:
-        ax_acorr.annotate(xy=(T/self.para['f'],0.5),xytext=(T/self.para['f'],0.9),s='',arrowprops=dict(arrowstyle='->',color='k'))
+    for T in self.dataBH['trials']['nFrames']:
+        ax_acorr.annotate(xy=(T/self.para['f'],0.5),xytext=(T/self.para['f'],0.9),text='',arrowprops=dict(arrowstyle='->',color='k'))
     ax_acorr.set_xlabel('$\Delta t$ [s]')
     ax_acorr.set_ylabel('corr.')
     ax_acorr.spines['right'].set_visible(False)
@@ -1664,7 +1709,7 @@ class detect_PC:
 
     x_arr = np.linspace(0,fmap_bs[i,:].max()*1.2,self.para['nbin']+1)
     offset = (x_arr[1]-x_arr[0])/2
-    act_hist = np.histogram(fmap_bs[i,:],x_arr,normed=True)
+    act_hist = np.histogram(fmap_bs[i,:],x_arr,density=True)
     ax3.bar(act_hist[1][:-1],act_hist[0],width=x_arr[1]-x_arr[0],color='b',alpha=0.2,label='data (bin %d)'%i)
 
     alpha, beta = gamma_paras(fr_mu[i],fr_std[i])
@@ -1703,7 +1748,7 @@ class detect_PC:
     for i in range(self.para['nbin']):
       x_arr = np.linspace(0,fmap_bs[i,:].max()*1.2,self.para['nbin']+1)
       offset = (x_arr[1]-x_arr[0])/2
-      act_hist = np.histogram(fmap_bs[i,:],x_arr,normed=True)
+      act_hist = np.histogram(fmap_bs[i,:],x_arr,density=True)
       alpha, beta = gamma_paras(fr_mu[i],fr_std[i])
       mu, shape = lognorm_paras(fr_mu[i],fr_std[i])
 
@@ -1905,12 +1950,14 @@ class HierarchicalBayesModel:
 
 
 
-def load_activity(pathSession,dataSet='redetect'):
+def load_activity(pathSession,dataSet='OnACID_results.hdf5'):
   ## load activity data from CaImAn results
 
-  pathAct = pathcat([pathSession,'results_%s.mat'%dataSet])
+  # pathAct = pathcat([pathSession,'results_%s.mat'%dataSet])
+  pathAct = pathcat([pathSession,dataSet])
+  ld = load_dict_from_hdf5(pathAct)
 
-  ld = sio.loadmat(pathAct,squeeze_me=True)
+  # ld = sio.loadmat(pathAct,squeeze_me=True)
   S = ld['S']
   if S.shape[0] > 8000:
     S = S.transpose()

@@ -139,23 +139,24 @@ def define_active(pathSession,f=15,plot_bool=False):
     with open(pathBH,'rb') as f:
         data = pickle.load(f)
 
-    min_val,max_val = np.nanpercentile(data['bin_position'],(0.1,99.9))
-    loc_dist = max_val - min_val 
+    # min_val,max_val = np.nanpercentile(data['bin_position'],(0.1,99.9))
+    # loc_dist = max_val - min_val
 
-    ## define trials    
-    data['trials'] = {}
-    data['trials']['start'] = np.append(0,np.where(np.diff(data['bin_position'])<(-loc_dist/2))[0] + 1)
+    # ## define trials    
+    # data['trials'] = {}
+    # data['trials']['start'] = np.append(0,np.where(np.diff(data['bin_position'])<(-loc_dist/2))[0] + 1)
 
-    ## remove half trials from data
-    if not (data['bin_position'][0] < 10):
-        data['active'][:max(0,data['trials']['start'][0])] = False
+    # ## remove half trials from data
+    # if not (data['bin_position'][0] < 10):
+    #     data['active'][:max(0,data['trials']['start'][0])] = False
 
-    if not (data['bin_position'][-1] >= 90):
-        data['active'][data['trials']['start'][-1]:] = False
+    # if not (data['bin_position'][-1] >= 90):
+    #     data['active'][data['trials']['start'][-1]:] = False
     
-    pos_active = data['bin_position'][data['active']]
-    data['trials']['start_active'] = np.append(0,np.where(np.diff(pos_active)<(-loc_dist/2))[0] + 1)
-    data['trials']['ct'] = len(data['trials']['start_active'])
+    # pos_active = data['bin_position'][data['active']]
+    # data['trials']['start_active'] = np.append(0,np.where(np.diff(pos_active)<(-loc_dist/2))[0] + 1)
+    # data['trials']['start_active_t'] = data['time'][data['active']][data['trials']['start_active']]
+    # data['trials']['ct'] = len(data['trials']['start_active'])
 
     if plot_bool:
         plt.figure(dpi=300)

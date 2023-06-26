@@ -324,7 +324,7 @@ def resample_behavior_data(data,
     )
     inactive = binary_opening(inactive,np.ones(binary_morph_width))
     data_resampled['active'] = ~inactive
-
+    
     return data_resampled
 
 
