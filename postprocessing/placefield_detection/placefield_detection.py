@@ -22,18 +22,22 @@ import numpy as np
 ### UltraNest toolbox ###
 ### from https://github.com/JohannesBuchner/UltraNest
 ### Documentation on https://johannesbuchner.github.io/UltraNest/performance.html
+import logging
 import ultranest
 from ultranest.plot import cornerplot
 import ultranest.stepsampler
 
 from .spike_shuffling import shuffling
 
-from .utils import pathcat, _hsm, get_nPaths, extend_dict, compute_serial_matrix, corr0, gauss_smooth, get_reliability, get_firingrate, add_number, pickleData
+from .utils import _hsm, get_average, ecdf, get_nPaths, extend_dict, compute_serial_matrix, corr0, gauss_smooth, get_reliability, get_firingrate, add_number, pickleData
 from .utils_data import set_para
 from .utils_analysis import define_active
 
 warnings.filterwarnings("ignore")
 
+logger = logging.getLogger("ultranest")
+logger.addHandler(logging.NullHandler())
+logger.setLevel(logging.WARNING)
 
 
 class detect_PC:
@@ -295,6 +299,7 @@ class detect_PC:
     t_start = time.time()
     if self.para['modes']['info']:
       MI_tmp = self.test_MI(active,trials_S)
+      # print(MI_tmp)
       for key in MI_tmp.keys():
         result['status'][key] = MI_tmp[key]
     #print('time taken (information): %.4f'%(time.time()-t_start))
@@ -311,19 +316,19 @@ class detect_PC:
     for t in range(5):
         trials = np.where(result['firingstats']['trial_field'][t,:])[0]
         if len(trials)<1:
+            # print(f'skipping trial {t}')
             continue
 
         firingstats_tmp = self.get_firingstats_from_trials(result['firingstats']['trial_map'],trials,complete=False)
 
-      #print(gauss_smooth(firingstats_tmp['map'],2))
+        #print(gauss_smooth(firingstats_tmp['map'],2))
 
-      # if (gauss_smooth(firingstats_tmp['map'],4)>(self.para['rate_thr']/2)).sum()>self.para['width_thr']:
+        # if (gauss_smooth(firingstats_tmp['map'],4)>(self.para['rate_thr']/2)).sum()>self.para['width_thr']:
 
         ### do further tests only if there is "significant" mutual information
 
         for f in range(self.f_max+1):
             field = self.run_nestedSampling(result['firingstats'],firingstats_tmp['map'],f)
-
         ## pick most prominent peak and store into result, if bayes factor > 1/2
         if field['Bayes_factor'][0] > 0:
 
@@ -470,7 +475,6 @@ class detect_PC:
     if f > 0:
 
       fields_tmp = self.detect_modes_from_posterior(sampler)
-
       if len(fields_tmp)>0:
 
         for key in fields_tmp.keys():
@@ -553,7 +557,7 @@ class detect_PC:
       plt.show(block=False)
 
       if self.para['plt_sv']:
-        pathSv = pathcat([self.para['pathFigs'],'PC_analysis_NS_contributions.png'])
+        pathSv = os.path.join(self.para['pathFigs'],'PC_analysis_NS_contributions.png')
         plt.savefig(pathSv)
         print('Figure saved @ %s'%pathSv)
 
@@ -562,7 +566,7 @@ class detect_PC:
     nPars = data_tmp['samples'].shape[-1]
     nf = int((nPars - 1)/3)
 
-    testing = False
+    testing = True
     bins = 2*self.para['nbin']
     offset = self.para['nbin']
 
@@ -784,7 +788,7 @@ class detect_PC:
         #ax_phase.legend(loc='upper right')
 
         if self.para['plt_sv']:
-            pathSv = pathcat([self.para['pathFigs'],'PC_analysis_NS_results.png'])
+            pathSv = os.path.join(self.para['pathFigs'],'PC_analysis_NS_results.png')
             plt.savefig(pathSv)
             print('Figure saved @ %s'%pathSv)
         plt.show(block=False)
@@ -1134,7 +1138,15 @@ class detect_PC:
         ## trial shuffling
         trials = np.random.permutation(trial_ct)
 
-        shuffled_activity_qtl = np.roll(np.hstack([np.roll(trials_S[t][S_key],int(random.random()*self.dataBH['trials']['nFrames'][t])) for t in trials]),int(random.random()*self.dataBH['nFrames']))
+        shuffled_activity_qtl = np.roll(
+          np.hstack(
+            [
+              np.roll(trials_S[t][S_key],int(random.random()*self.dataBH['trials']['nFrames'][t])) 
+              for t in trials
+            ]
+          ),
+          int(random.random()*self.dataBH['nFrames'])
+        )
 
         #shuffled_activity_S = np.roll(np.hstack([np.roll(trials_S[t]['S'],int(random.random()*self.dataBH['trials']['T'][t])) for t in trials]),int(random.random()*self.dataBH['T']))
 
@@ -1344,8 +1356,9 @@ class detect_PC:
     return firingmap
 
   def plt_results(self,result,t):
-
+    
     #print('for display: draw tuning curves from posterior distribution and evaluate TC-value for each bin. then, each bin has distribution of values and can be plotted! =)')
+    print('plot results')
     style_arr = ['--','-']
     #col_arr = []
     #fig,ax = plt.subplots(figsize=(5,3),dpi=150)
@@ -1386,14 +1399,14 @@ class detect_PC:
     ax.spines['right'].set_visible(False)
     plt.tight_layout()
     if self.para['plt_sv']:
-      pathSv = pathcat([self.para['pathFigs'],'PC_analysis_fit_results.png'])
+      pathSv = os.path.join(self.para['pathFigs'],'PC_analysis_fit_results.png')
       plt.savefig(pathSv)
       print('Figure saved @ %s'%pathSv)
     plt.show(block=False)
 
 
   def plt_data(self,n,S=None,results=None,ground_truth=None,activity_mode='calcium',sv=False,suffix=''):
-
+    print('plot data')
     rc('font',size=10)
     rc('axes',labelsize=12)
     rc('xtick',labelsize=8)
@@ -1401,7 +1414,8 @@ class detect_PC:
 
     highlight_trial = False
     if (S is None) and ~hasattr(self,'S'):
-        pathDat = os.path.join(self.para['pathSession'],'results_redetect.mat')
+        # pathDat = os.path.join(self.para['pathSession'],'results_redetect.mat')
+        pathDat = os.path.join(self.para['pathSession'],'OnACID_results.hdf5')
         ld = loadmat(pathDat,variable_names=['S','C'])
         self.S = ld['S']
         self.C = ld['C']
@@ -1546,13 +1560,13 @@ class detect_PC:
     plt.tight_layout()
     plt.show(block=False)
     if sv:
-      pathSv = pathcat([self.para['pathFigs'],'PC_detection_example_%s.png'%suffix])
+      pathSv = os.path.join(self.para['pathFigs'],'PC_detection_example_%s.png'%suffix)
       plt.savefig(pathSv)
       print('Figure saved @ %s'%pathSv)
 
 
   def plt_model_selection(self,fmap_bs,firingstats,trials_fmap):
-
+    print('plot model selection')
     rc('font',size=10)
     rc('axes',labelsize=12)
     rc('xtick',labelsize=8)
@@ -1563,9 +1577,6 @@ class detect_PC:
     fr_mu = firingstats['map']#gauss_smooth(np.nanmean(fmap_bs,1),2)
     fr_CI = firingstats['CI']
     fr_std = firingstats['std']
-
-    #print(fr_mu)
-    #print()
 
     fig = plt.figure(figsize=(7,5),dpi=150)
 
@@ -1764,7 +1775,7 @@ class detect_PC:
     plt.tight_layout()
     plt.show(block=False)
     if self.para['plt_sv']:
-        pathSv = pathcat([self.para['pathFigs'],'PC_analysis_HBM.png'])
+        pathSv = os.path.join(self.para['pathFigs'],'PC_analysis_HBM.png')
         plt.savefig(pathSv)
         print('Figure saved @ %s'%pathSv)
 
@@ -1833,7 +1844,7 @@ class detect_PC:
       plt.show(block=False)
 
       if self.para['plt_sv']:
-          pathSv = pathcat([self.para['pathFigs'],'PC_analysis_HBM_model.png'])
+          pathSv = os.path.join(self.para['pathFigs'],'PC_analysis_HBM_model.png')
           plt.savefig(pathSv)
           print('Figure saved @ %s'%pathSv)
 
@@ -1947,14 +1958,11 @@ class HierarchicalBayesModel:
 
 
 
-
-
-
 def load_activity(pathSession,dataSet='OnACID_results.hdf5'):
   ## load activity data from CaImAn results
 
   # pathAct = pathcat([pathSession,'results_%s.mat'%dataSet])
-  pathAct = pathcat([pathSession,dataSet])
+  pathAct = os.path.join(pathSession,dataSet)
   ld = load_dict_from_hdf5(pathAct)
 
   # ld = sio.loadmat(pathAct,squeeze_me=True)
@@ -1987,43 +1995,6 @@ def get_MI(p_joint,p_x,p_f):
   #plt.show(block=False)
   return np.nansum(p_tot)
 
-def _hsm(data,sort_it=True):
-  ### adapted from caiman
-  ### Robust estimator of the mode of a data set using the half-sample mode.
-  ### versionadded: 1.0.3
-
-  ### Create the function that we can use for the half-sample mode
-  ### sorting done as first step, if not specified else
-
-  data = data[np.isfinite(data)]
-  if sort_it:
-    data = np.sort(data)
-
-  if data.size == 1:
-      return data[0]
-  elif data.size == 2:
-      return data.mean()
-  elif data.size == 3:
-      i1 = data[1] - data[0]
-      i2 = data[2] - data[1]
-      if i1 < i2:
-          return data[:2].mean()
-      elif i2 > i1:
-          return data[1:].mean()
-      else:
-          return data[1]
-  else:
-
-      wMin = np.inf
-      N = data.size//2 + data.size % 2
-      for i in range(N):
-          w = data[i + N - 1] - data[i]
-          if w < wMin:
-              wMin = w
-              j = i
-
-      return _hsm(data[j:j + N])
-
 
 def get_spikeNr(data):
 
@@ -2047,75 +2018,6 @@ def get_spikeNr(data):
     data_thr = md+2*sd_r;
     spikeNr = np.floor(data/data_thr).sum();
     return spikeNr,md,sd_r
-
-
-
-def ecdf(x,p=None):
-
-  if type(p)==np.ndarray:
-    #assert abs(1-p.sum()) < 10**(-2), 'probability is not normalized, sum(p) = %5.3g'%p.sum()
-    #if abs(1-p.sum()) < 10**(-2):
-    p /= p.sum()
-    sort_idx = np.argsort(x)
-    x = x[sort_idx]
-    y = np.cumsum(p[sort_idx])
-  else:
-    x = np.sort(x)
-    y = np.cumsum(np.ones(x.shape)/x.shape)
-
-  return x,y
-
-
-def get_average(x,p,periodic=False,bounds=None):
-
-  #assert abs(1-p.sum()) < 10**(-2), 'probability not normalized, sum(p) = %5.3g'%p.sum()
-  if abs(1-p.sum()) < 10**(-2):
-      p /= p.sum()
-  if periodic:
-    assert bounds, 'bounds not specified'
-    L = bounds[1]-bounds[0]
-    scale = L/(2*np.pi)
-    avg = (cmath.phase((p*np.exp(+complex(0,1)*(x-bounds[0])/scale)).sum())*scale + bounds[0]) % L
-  else:
-    avg = (x*p).sum()
-  return avg
-
-
-#def get_average(x,p,periodic=False,bounds=None):
-
-  ##assert abs(1-p.sum()) < 10**(-2), 'probability not normalized, sum(p) = %5.3g'%p.sum()
-  #if abs(1-p.sum()) < 10**(-2):
-      #p /= p.sum()
-  #if periodic:
-    #assert bounds, 'bounds not specified'
-    #L = bounds[1]-bounds[0]
-    #scale = L/(2*np.pi)
-    #avg = (cmath.phase((p*periodic_to_complex(x,bounds)).sum())*scale) % L + bounds[0]
-  #else:
-    #avg = (x*p).sum()
-  #return avg
-
-
-def periodic_difference(x,y,bounds):
-  scale = (bounds[1]-bounds[0])/(2*np.pi)
-  print(scale)
-  print(periodic_to_complex(x,bounds))
-  print(periodic_to_complex(y,bounds))
-  print(cmath.phase(periodic_to_complex(y,bounds) - periodic_to_complex(x,bounds)))
-  diff = cmath.phase(periodic_to_complex(y,bounds) - periodic_to_complex(x,bounds))*scale + bounds[0]
-  return diff
-
-
-def periodic_to_complex(x,bounds):
-  scale = (bounds[1]-bounds[0])/(2*np.pi)
-  return np.exp(complex(0,1)*(x-bounds[0])/scale)
-
-def complex_to_periodic(phi,bounds):
-  L = bounds[1]-bounds[0]
-  scale = L/(2*np.pi)
-
-  return (cmath.phase(phi)*scale) % L + bounds[0]
-
 
 
 def jackknife(X,Y,W=None,rank=1):
@@ -2168,7 +2070,3 @@ def gamma_paras(mean,SD):
   alpha = (mean/SD)**2
   beta = mean/SD**2
   return alpha, beta
-
-
-def pathcat(strings):
-  return '/'.join(strings)

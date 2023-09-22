@@ -80,7 +80,8 @@ def set_para(basePath,mouse,s,nP=0,nbin=100,plt_bool=False,sv_bool=False,suffix=
           'CI_arr':[0.025,0.05,0.95,0.975],
 
           'plt_bool':plt_bool&(nP==0),
-          'plt_theory_bool':True&(nP==0),
+          # 'plt_theory_bool':True&(nP==0),
+          'plt_theory_bool':False,
           'plt_sv':sv_bool&(nP==0),
 
           'mouse':mouse,

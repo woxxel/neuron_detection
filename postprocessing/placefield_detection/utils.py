@@ -49,7 +49,7 @@ def find_modes(data,axis=None,sort_it=True):
 
 
 
-def _hsm(data):
+def _hsm(data,sort_it=True):
   ### adapted from caiman
   ### Robust estimator of the mode of a data set using the half-sample mode.
   ### versionadded: 1.0.3
@@ -57,10 +57,14 @@ def _hsm(data):
   ### Create the function that we can use for the half-sample mode
   ### sorting done as first step, if not specified else
 
+  data = data[np.isfinite(data)]
   if data.size == 0:
     return np.NaN
   if np.all(data == data[0]):
     return data[0]
+  
+  if sort_it:
+    data = np.sort(data)
 
   if data.size == 1:
     return data[0]
@@ -170,9 +174,18 @@ def periodic_distr_distance(p1,p2,nbin,L_track,mu1=None,mu2=None,N_bs=1000,mode=
   ##plt.plot(d_raw,d_raw,'rx');
   #plt.show(block=False)
 
-
-
   return d_out
+
+
+def periodic_to_complex(x,bounds):
+  scale = (bounds[1]-bounds[0])/(2*np.pi)
+  return np.exp(complex(0,1)*(x-bounds[0])/scale)
+
+def complex_to_periodic(phi,bounds):
+  L = bounds[1]-bounds[0]
+  scale = L/(2*np.pi)
+
+  return (cmath.phase(phi)*scale) % L + bounds[0]
 
 
 def wasserstein_distance(u_values, v_values, u_weights=None, v_weights=None):
@@ -245,9 +258,28 @@ def get_average(x,p,periodic=False,bounds=None):
     L = bounds[1]-bounds[0]
     scale = L/(2*np.pi)
     avg = (cmath.phase((p*np.exp(+complex(0,1)*(x-bounds[0])/scale)).sum())*scale) % L + bounds[0]
+    # avg = (cmath.phase((p*np.exp(+complex(0,1)*(x-bounds[0])/scale)).sum())*scale + bounds[0]) % L
+    # avg = (cmath.phase((p*periodic_to_complex(x,bounds)).sum())*scale) % L + bounds[0]
   else:
     avg = (x*p).sum()
   return avg
+
+
+
+def ecdf(x,p=None):
+
+  if type(p)==np.ndarray:
+    #assert abs(1-p.sum()) < 10**(-2), 'probability is not normalized, sum(p) = %5.3g'%p.sum()
+    #if abs(1-p.sum()) < 10**(-2):
+    p /= p.sum()
+    sort_idx = np.argsort(x)
+    x = x[sort_idx]
+    y = np.cumsum(p[sort_idx])
+  else:
+    x = np.sort(x)
+    y = np.cumsum(np.ones(x.shape)/x.shape)
+
+  return x,y
 
 
 

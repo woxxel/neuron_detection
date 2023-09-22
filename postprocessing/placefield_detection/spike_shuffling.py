@@ -41,8 +41,8 @@ def shuffling(mode,shuffle_peaks,**varin):
     
     [new_spike_train,tmp] = shift_spikes(varin['spike_train'])
     if shuffle_peaks:
-      spike_times = find(new_spike_train)
-      spikes = new_spike_train(spike_times)
+      spike_times = np.where(new_spike_train)[0]
+      spikes = new_spike_train[spike_times]
       new_spike_train[spike_times] = spikes[np.random.permutation(len(spike_times))]        ## shuffle spike numbers
     
   elif mode == 'dither':
@@ -63,7 +63,7 @@ def shuffling(mode,shuffle_peaks,**varin):
   elif mode == 'dsr':
   
     print('not yet implemented')
-    new_spike_train = NaN;
+    new_spike_train = np.NaN;
     
   
   #plt = false;
@@ -152,11 +152,11 @@ def dither_spikes(spike_times,spikes,T,ISI,w,shuffle_peaks):
 def get_ISI(spike_train):
   
   ## this part effectively splits up spike bursts (single event with multiple spikes to multiple events with single spikes)
-  spike_times = find(spike_train);
+  spike_times = np.where(spike_train)[0];
   idx_old = 1;
   new_spike_times = [];
-  print(np.where(spike_train>1))
-  print(np.where(spike_train>1)[0])
+  # print(np.where(spike_train>1))
+  # print(np.where(spike_train>1)[0])
   for t in np.where(spike_train>1)[0]:
     idx_new = np.where(spike_times==t)[0]
     nspikes = spike_train[t]
