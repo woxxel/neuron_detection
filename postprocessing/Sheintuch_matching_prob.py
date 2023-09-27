@@ -81,7 +81,7 @@ class Sheintuch_matching:
             'kernel':         {'idxes':   {},
                              'kde':     {}}
         }
-
+    
     def run_matching(self,p_thr=0.5):
         print('Now analyzing mouse %s'%self.para['pathMouse'])
         print('Building model for matching ...')
