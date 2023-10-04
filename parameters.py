@@ -58,7 +58,7 @@ CaImAn = {
     # 'path_to_model': '~/caiman_data/model/cnn_model_online.h5',
 
     ### display during online
-    'show_movie': False,
+    'show_movie': True,
     'save_online_movie': False,
     # 'movie_name_online': "test_mp4v.avi"
 

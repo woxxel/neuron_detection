@@ -1,5 +1,5 @@
 import os, sys
-sys.path.append('./CaImAn')
+# sys.path.append('./CaImAn')
 
 from session_info import *
 

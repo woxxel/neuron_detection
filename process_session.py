@@ -9,7 +9,7 @@ import parameters as para
 ## obtain input parameters
 _, dataset, mouse, path_to_session_on_cloud, cpus = sys.argv
 n_processes = int(cpus)
-print(sys.argv)
+# print(sys.argv)
 
 session_name = os.path.split(path_to_session_on_cloud)[-1]
 path_to_session_on_home = os.path.join('/scratch/users',os.environ['USER'],'data',dataset,mouse,session_name)
