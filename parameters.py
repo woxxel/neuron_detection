@@ -15,7 +15,7 @@ CaImAn = {
     ### data
     'fr': 15,
     'decay_time': 0.47,
-    'gSig': [6, 6],                     # expected half size of neurons
+    'gSig': [10, 10],                     # expected half size of neurons
 
     ### spatial params
     'block_size_spat': 5000,
@@ -39,7 +39,7 @@ CaImAn = {
     'border_pix': 0,
     'rf': 64,                           # size of patch
     'stride': 16,
-    'only_init': False, # (what exactly is this?) # whether to run only the initialization
+    'only_init': True, # (what exactly is this?) # whether to run only the initialization
 
     ### online
     'motion_correct': False,
