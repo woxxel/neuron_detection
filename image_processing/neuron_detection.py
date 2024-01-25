@@ -38,13 +38,9 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
     Yr, dims, T = cm.load_memmap(opts.get("data","fnames")[0])
     Y = np.reshape(Yr.T, [T] + list(dims), order='F')
 
-
-    ### it crashes here!!!
-    # return onacid
     onacid.estimates.evaluate_components(Y,opts,dview) # does this work with a memmapped file?
     onacid.estimates.Cn = cm.load(fname, subindices=slice(0,None,10)).local_correlations(swap_dim=False)
 
-    ## find and remove neurons which are too close to the border
     plot_stuff=False
     if plot_stuff:
         onacid.estimates.plot_contours(idx=onacid.estimates.idx_components)   ## plot contours, need that one to get the coordinates
@@ -54,42 +50,21 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
         onacid.estimates.coordinates = cm.utils.visualization.get_contours(onacid.estimates.A, dims, thr=0.2, thr_method='max')
 
     ## find and remove neurons which are too close to the border
-    # try:
     idx_border = []
     for n in range(N):
         if (onacid.estimates.coordinates[n]['CoM'] < border_thr).any() or (onacid.estimates.coordinates[n]['CoM'] > (onacid.estimates.dims[0]-border_thr)).any():
             idx_border.append(n)
     onacid.estimates.idx_components = np.setdiff1d(onacid.estimates.idx_components,idx_border)
     onacid.estimates.idx_components_bad = np.union1d(onacid.estimates.idx_components_bad,idx_border)
-    # except:
-    #     print('border thresholding failed')
-    # CoM = np.zeros((len(onacid.estimates.idx_components),2))
-    # for i,n in enumerate(onacid.estimates.idx_components):
-        # CoM[i,:] = onacid.estimates.coordinates[n]['CoM']
 
     # update object with selected components
     onacid.estimates.select_components(use_object=True, save_discarded_components=False)
     print(f'\tNumber of components left after evaluation: {onacid.estimates.A.shape[-1]}')
 
-    # print('final step: storing results...')
-    # results = dict(A=onacid.estimates.A,
-    #     C=onacid.estimates.C,
-    #     S=onacid.estimates.S,
-    #     CoM=CoM,
-    #     SNR=onacid.estimates.SNR_comp,
-    #     r_val=onacid.estimates.r_values,
-    #     CNN=onacid.estimates.cnn_preds,
-    #     b=onacid.estimates.b,
-    #     f=onacid.estimates.f,
-    # )
-
     out_file = os.path.join(os.path.split(fname)[0],'OnACID_results.hdf5')
     onacid.estimates = clear_cnm(onacid.estimates,retain=['A','C','S','b','f','Cn','dims','coordinates','SNR_comp','r_values','cnn_preds'])
 
     save_dict_to_hdf5(onacid.estimates.__dict__, out_file)
-
-    # onacid.save(out_file)
-    # pickle.dump(results, open(out_file, "wb"))
     print("\tNeuron detection done @t = %s, (time passed: %s)" % (time.ctime(),str(time.time()-t_start)))
 
     return out_file

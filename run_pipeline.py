@@ -11,7 +11,7 @@ from image_processing import *
 import parameters as para
 
 
-def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='555wt',sessions=None,n_processes=4):
+def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='556wt',sessions=None,n_processes=4):
 
     """
         Calls all functions for preprocessing data
