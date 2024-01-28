@@ -36,6 +36,7 @@ def make_stack_from_single_tifs(in_folder,out_folder,file_name=None,T_max=np.inf
 
         fname = file_name if file_name else os.path.splitext(fnames[0])[0][:-4]     ## assuming single recording images, where the last 4 digits indicate framenumber
 
+    os.makedirs(out_folder,exist_ok=True)
     out_path = os.path.join(out_folder,os.path.split(fname)[-1]+'.tif')
 
     ## get information on size of resulting stack and check for data consistency

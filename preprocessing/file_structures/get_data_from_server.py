@@ -23,7 +23,7 @@ def get_data_from_server(path_source,path_target,ssh_conn,show_progress=True):
     cp_cmd += f"-e ssh {ssh_conn}:{path_source}/images/ {path_target}"
 
     if not os.path.isdir(path_target):
-        os.mkdir(path_target)
+        os.makedirs(path_target,exist_ok=True)
     
     print(f"Obtaining data from {ssh_conn}:{path_source}... (this may take ~5-10mins depending on your connection)")
     os.system(cp_cmd)
