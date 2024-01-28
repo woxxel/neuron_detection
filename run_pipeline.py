@@ -1,11 +1,7 @@
-import os, sys
-# sys.path.append('./CaImAn')
+import os
 
 from session_info import *
-
-from preprocessing.file_structures.get_data_from_server import *
-from preprocessing.file_structures.make_stack_from_single_tifs import *
-
+from preprocessing import *
 from image_processing import *
 
 import parameters as para
@@ -25,7 +21,7 @@ def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='556wt',sessions=None,n_p
                 specifies which sessions should be preprocessed. if 'None', all sessions found will be processed
     """
 
-    folder = f"/usr/users/cidbn1/neurodyn/{dataset}/{mouse}"
+    folder = f"{para.system['source_folder']}/{dataset}/{mouse}"
     if not sessions:
         cmd = f"ssh {para.system['ssh_alias']} 'find {folder}/Session* -type d -maxdepth 0'"
         stdout = os.popen(cmd).read()

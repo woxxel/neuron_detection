@@ -4,12 +4,12 @@ import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
 
-def motion_correct(fname,params,use_parallel=True,n_processes=None):
+def motion_correct(fname,params,n_processes=None):
 
     """
         Runs the motion correction algorithm NoRMCorr and returns the path to the output file
     """
-
+    use_parallel = n_processes > 1
     print(f"\tNow running motion correction @t = {time.ctime()}")
     print(f"\t\tNeed to add: save statistics of motion correction, such as framewise rigid shift (what else?)")
 
