@@ -21,7 +21,7 @@ def make_stack_from_single_tifs(in_folder,out_folder,file_name=None,T_max=np.inf
         returns:
             nothing
     """
-
+    
     if isinstance(in_folder,list):
         assert (file_name is not None), "Please provide a file_name for the resulting stack, when using a list of folders"
         fnames = []
