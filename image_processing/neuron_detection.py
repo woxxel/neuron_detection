@@ -5,7 +5,7 @@ from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.utils import *
 
 
-def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=5):
+def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=5,suffix=''):
 
     """
         Runs the neuron detection algorithm OnACID and returns the path to the output file
@@ -61,7 +61,7 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
     onacid.estimates.select_components(use_object=True, save_discarded_components=False)
     print(f'\tNumber of components left after evaluation: {onacid.estimates.A.shape[-1]}')
 
-    out_file = os.path.join(os.path.split(fname)[0],'OnACID_results.hdf5')
+    out_file = os.path.join(os.path.split(fname)[0],f'OnACID_results{suffix}.hdf5')
     onacid.estimates = clear_cnm(onacid.estimates,retain=['A','C','S','b','f','Cn','dims','coordinates','SNR_comp','r_values','cnn_preds'])
 
     save_dict_to_hdf5(onacid.estimates.__dict__, out_file)

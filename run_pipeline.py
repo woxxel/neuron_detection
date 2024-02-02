@@ -8,7 +8,7 @@ from .utils.parameters import CaImAn as CaImAn_params
 from .utils.parameters import system as system_params
 
 
-def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='556wt',sessions=None,n_processes=4):
+def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='556wt',sessions=None,n_processes=4,suffix=''):
 
     """
         Calls all functions for preprocessing data
@@ -64,7 +64,7 @@ def run_pipeline(dataset='AlzheimerMice_Hayashi',mouse='556wt',sessions=None,n_p
 
         if not sessionInfo.status("neuron_detection"):
             # path_out = neuron_detection(sessionInfo.get("motion_correct"),para.CaImAn)
-            path_to_neuron_detection = neuron_detection(sessionInfo.get("motion_correct"),para.CaImAn,n_processes=n_processes)
+            path_to_neuron_detection = neuron_detection(sessionInfo.get("motion_correct"),para.CaImAn,n_processes=n_processes,suffix=suffix)
             sessionInfo.register_new("neuron_detection",path_to_neuron_detection)
         else:
             print(f"\tNeuron detection already done: {sessionInfo.get('neuron_detection')}")
