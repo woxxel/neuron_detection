@@ -124,3 +124,10 @@ def clear_cnm(dic,retain=None,remove=None):
 
 # + 944wt, 2
 # + 943shKO, 27
+
+
+slurmstepd: error: _get_joules_task: can't get info from slurmd
+slurmstepd: error: Unable to create TMPDIR [/local/schmidt124_405589]: Permission denied
+slurmstepd: error: Setting TMPDIR to /tmp
+
+PermissionError: [Errno 13] Permission denied: '/local/schmidt124_405589'
