@@ -1,6 +1,6 @@
 system = {
-    'ssh_alias': 'transfer-gwdg',    # (string) name of the connection
-    'source_folder': '/usr/users/cidbn1/neurodyn/',
+    'ssh_alias': 'hpc-sofja',    # (string) name of the connection
+    'source_folder': '/usr/users/cidbn1/neurodyn',
     'target_folder': './../data',
     'tmp_folder': './../data/tmp',
     # 'caiman_datadir': '/home/wollex/Data/Science/WolfGroup/PlaceFields/data_pipeline/CaImAn'
