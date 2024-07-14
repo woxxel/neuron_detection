@@ -1,11 +1,12 @@
 import time, os
+import h5py, hdf5storage
 import numpy as np
 import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.utils import *
 
 
-def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=5,suffix=''):
+def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=5,suffix='',save_type='hdf5'):
 
     """
         Runs the neuron detection algorithm OnACID and returns the path to the output file
@@ -75,8 +76,8 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
 
     out_file = os.path.join(os.path.split(fname)[0],f'OnACID_results{suffix}.hdf5')
 
-    print(cnmf_obj.estimates.Cn)
-    print(cnmf_obj.estimates.Cn.shape)
+    # print(cnmf_obj.estimates.Cn)
+    # print(cnmf_obj.estimates.Cn.shape)
     retain_keys = ['A','C','S','b','f','Cn','dims','coordinates','SNR_comp','r_values','cnn_preds']
 
     ## for some reason, Cn has issues in 1% of cases
@@ -88,7 +89,13 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
 
     cnmf_obj.estimates = clear_cnm(cnmf_obj.estimates,retain=retain_keys)
 
-    save_dict_to_hdf5(cnmf_obj.estimates.__dict__, out_file)
+    if save_type=='hdf5':
+        save_dict_to_hdf5(cnmf_obj.estimates.__dict__, out_file)
+    elif save_type=='mat':
+        hdf5storage.write(cnmf_obj.estimates.__dict__, '.', out_file, matlab_compatible=True)
+    else:
+        assert False, f'save_type {save_type} not recognized'
+
     print("\tNeuron detection done @t = %s, (time passed: %s)" % (time.ctime(),str(time.time()-t_start)))
 
     return out_file
@@ -112,22 +119,3 @@ def clear_cnm(dic,retain=None,remove=None):
                 dic.__dict__.pop(key)
 
     return dic
-
-
-# 404759     cidbn                m944wts8_detect     schmidt124  RUNNING       7:17   4:00:00      1 dbn02
-# 404760     cidbn               m944wts18_detect     schmidt124  RUNNING       7:17   4:00:00      1 dbn02
-# 404754     cidbn               m780wts49_detect     schmidt124  RUNNING       9:01   4:00:00      1 dbn01
-# 404755     cidbn               m780wts57_detect     schmidt124  RUNNING       9:01   4:00:00      1 dbn01
-# 404752     cidbn               m556wts59_detect     schmidt124  RUNNING       9:10   4:00:00      1 dbn01
-# 404753     cidbn               m556wts60_detect     schmidt124  RUNNING       9:10   4:00:00      1 dbn01
-
-
-# + 944wt, 2
-# + 943shKO, 27
-
-
-slurmstepd: error: _get_joules_task: can't get info from slurmd
-slurmstepd: error: Unable to create TMPDIR [/local/schmidt124_405589]: Permission denied
-slurmstepd: error: Setting TMPDIR to /tmp
-
-PermissionError: [Errno 13] Permission denied: '/local/schmidt124_405589'
