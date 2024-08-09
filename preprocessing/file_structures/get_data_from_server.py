@@ -20,7 +20,7 @@ def get_data_from_server(path_source,path_target,ssh_conn,show_progress=True):
     cp_cmd = f"rsync -r "
     if show_progress:
         cp_cmd += f"--info=progress2 "
-    cp_cmd += f"-e ssh {ssh_conn}:{path_source}/images/ {path_target}"
+    cp_cmd += f"-e ssh {ssh_conn}:{path_source} {path_target}"
 
     if not os.path.isdir(path_target):
         os.makedirs(path_target,exist_ok=True)

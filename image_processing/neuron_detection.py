@@ -1,5 +1,6 @@
 import time, os
-import h5py, hdf5storage
+# import h5py, hdf5storage
+from scipy.io import savemat
 import numpy as np
 import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
@@ -11,6 +12,11 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
     """
         Runs the neuron detection algorithm OnACID and returns the path to the output file
     """
+
+    fileName = os.path.basename(fname).split('_els')[0]
+    saveName = os.path.join(os.path.split(fname)[0],f'results_CaImAn_{fileName}{suffix}.')
+
+    print('in the end, saving results to: ',saveName, ' with data type: ',save_type)
 
     print(f"\tNow running neuron detection @t = {time.ctime()}")
     t_start = time.time()   # start time measurement from here
@@ -74,7 +80,6 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
     cnmf_obj.estimates.select_components(use_object=True, save_discarded_components=False)
     print(f'\tNumber of components left after evaluation: {cnmf_obj.estimates.A.shape[-1]}')
 
-    out_file = os.path.join(os.path.split(fname)[0],f'OnACID_results{suffix}.hdf5')
 
     # print(cnmf_obj.estimates.Cn)
     # print(cnmf_obj.estimates.Cn.shape)
@@ -88,13 +93,17 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
         # retain_keys = ['A','C','S','b','f','dims','coordinates','SNR_comp','r_values','cnn_preds']
 
     cnmf_obj.estimates = clear_cnm(cnmf_obj.estimates,retain=retain_keys)
+    cnmf_obj.fname = fname
 
+    # for tp in save_type:
+    out_file = saveName + save_type
+    print('out',out_file,save_type)
     if save_type=='hdf5':
         save_dict_to_hdf5(cnmf_obj.estimates.__dict__, out_file)
-    elif save_type=='mat':
-        hdf5storage.write(cnmf_obj.estimates.__dict__, '.', out_file, matlab_compatible=True)
-    else:
-        assert False, f'save_type {save_type} not recognized'
+    if save_type=='mat':
+        savemat(out_file,cnmf_obj.estimates.__dict__)
+    # else:
+        # assert False, f'save_type {save_type} not recognized'
 
     print("\tNeuron detection done @t = %s, (time passed: %s)" % (time.ctime(),str(time.time()-t_start)))
 
