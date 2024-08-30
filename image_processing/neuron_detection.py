@@ -7,14 +7,13 @@ from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.utils import *
 
 
-def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=5,suffix='',save_type='hdf5'):
+def neuron_detection(fname,params,saveName='results_CaImAn',use_parallel=True,n_processes=None,border_thr=5,save_type='hdf5'):
 
     """
         Runs the neuron detection algorithm OnACID and returns the path to the output file
     """
 
-    fileName = os.path.basename(fname).split('_els')[0]
-    saveName = os.path.join(os.path.split(fname)[0],f'results_CaImAn_{fileName}{suffix}.')
+    saveName = os.path.join(os.path.split(fname)[0],saveName)
 
     print('in the end, saving results to: ',saveName, ' with data type: ',save_type)
 
@@ -96,7 +95,7 @@ def neuron_detection(fname,params,use_parallel=True,n_processes=None,border_thr=
     cnmf_obj.fname = fname
 
     # for tp in save_type:
-    out_file = saveName + save_type
+    out_file = f'{saveName}.{save_type}'
     print('out',out_file,save_type)
     if save_type=='hdf5':
         save_dict_to_hdf5(cnmf_obj.estimates.__dict__, out_file)

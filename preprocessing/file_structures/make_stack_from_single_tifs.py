@@ -170,10 +170,11 @@ def make_stack_from_h5(in_file,out_folder,T_max=np.inf,data_type=None,normalize=
 
     del memmap_image
 
-    # if clean_after_stacking:
-    #     print("Removing tmp files...")
-    #     try:
-    #         shutil.rmtree(in_folder)
-    #     except:
-    #         pass
+    if clean_after_stacking:
+        print("Removing tmp files...")
+        os.remove(in_file)
+        # try:
+        #     shutil.rmtree(in_folder)
+        # except:
+        #     pass
     return out_path
