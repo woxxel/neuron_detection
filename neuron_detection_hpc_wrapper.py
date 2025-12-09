@@ -2,7 +2,7 @@ import os, sys, shutil
 
 from preprocessing.file_structures.make_stack_from_single_tifs import *
 from image_processing import *
-import PC_analysis.placefield_dynamics.neuron_detection.utils.parameters as para
+import PC_analysis.turnover_dynamics.neuron_detection.utils.parameters as para
 
 ### dont forget putting caiman_data/model/* in home folder!
 
