@@ -4,11 +4,11 @@ import os, shutil, copy
 from pathlib import Path
 from typing import Optional
 
-from .preprocessing.file_structures.make_tif_stack import make_tif_stack
-from .image_processing.motion_correct import motion_correct
-from .image_processing.neuron_detection import neuron_detection
+from neuron_detection.preprocessing.file_structures.make_tif_stack import make_tif_stack
+from neuron_detection.image_processing.motion_correct import motion_correct
+from neuron_detection.image_processing.neuron_detection import neuron_detection
 
-from .utils.parameters import CaImAn as CaImAn_params
+from neuron_detection.utils.parameters import CaImAn as CaImAn_params
 import argparse
 
 
@@ -27,6 +27,7 @@ def run_detection(
     runs the full CaImAn neuron detection pipeline
     assumes source to provide the full path to the data (either to file or folder with images)
     """
+    print("in run_detection with source:", source, flush=True)
     path_source = Path(source)
     fname_stem = Path(source).stem
     suffix = f"{fname_stem}{suffix}"
@@ -44,8 +45,8 @@ def run_detection(
 
     os.environ["CAIMAN_DATA"] = str(Path.home() / "caiman_data")
     os.environ["CAIMAN_TEMP"] = str(path_tmp.resolve())
+    print("path tmp:", path_tmp, flush=True)
 
-    print("path tmp:", path_tmp)
     os.makedirs(path_tmp, exist_ok=True)
 
     path_to_stack = ensure_stack(path_source, path_tmp)
@@ -207,6 +208,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    print("ho!")
     parser = build_parser()
     args = parser.parse_args(argv)
     print(args)
