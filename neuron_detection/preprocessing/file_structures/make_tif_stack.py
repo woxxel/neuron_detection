@@ -46,7 +46,8 @@ def make_tif_stack(
     if ext in [".hdf5", ".h5"]:
         f = h5py.File(source_path, "r")
         dataset_key = list(f.keys())[0]
-        data = f[dataset_key]
+        data = np.array(f[dataset_key])
+        data_type_in = data.dtype
         dims = data.shape
         T_total = dims[0]
         dims = dims[1:]
@@ -73,7 +74,7 @@ def make_tif_stack(
             tif = TiffFile(fname)
             assert (
                 tif.pages[0].shape == dims
-            ), f"Dimensions of the imaging data do not agree! {d} vs {tif.pages[0].shape}"
+            ), f"Dimensions of the imaging data do not agree! {dims} vs {tif.pages[0].shape}"
             assert (
                 tif.pages[0].dtype == data_type_in
             ), f"Data type of the imaging data do not agree! {data_type_in} vs {tif.pages[0].dtype}"
@@ -94,7 +95,7 @@ def make_tif_stack(
     T = int(min(T_max, T_total))
     dims = (T,) + dims
 
-    dtype_in = data.dtype
+    dtype_in = data.dtype  # type: ignore
     dtype = dtype if dtype else dtype_in
 
     normalize = normalize and (not str(dtype_in).startswith("float"))

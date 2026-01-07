@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 import os, shutil, copy
 from pathlib import Path
 from typing import Optional
 
-from preprocessing.file_structures.make_stack_from_single_tifs import make_tif_stack
-from image_processing.motion_correct import motion_correct
-from image_processing.neuron_detection import neuron_detection
+from .preprocessing.file_structures.make_tif_stack import make_tif_stack
+from .image_processing.motion_correct import motion_correct
+from .image_processing.neuron_detection import neuron_detection
 
-from utils.parameters import CaImAn as CaImAn_params
+from .utils.parameters import CaImAn as CaImAn_params
 import argparse
 
 
@@ -33,14 +35,18 @@ def run_detection(
     path_destination = Path(destination) if destination else path_source.parent
     os.makedirs(path_destination, exist_ok=True)
 
-    path_tmp = Path(
-        os.environ.get("TMPDIR", tmp if tmp is not None else str(path_destination))
+    path_tmp = (
+        Path(
+            os.environ.get("TMPDIR", tmp if tmp is not None else str(path_destination))
+        )
+        / "tmp"
     )
 
     os.environ["CAIMAN_DATA"] = str(Path.home() / "caiman_data")
-    os.environ["CAIMAN_TEMP"] = str(path_tmp)
+    os.environ["CAIMAN_TEMP"] = str(path_tmp.resolve())
 
     print("path tmp:", path_tmp)
+    os.makedirs(path_tmp, exist_ok=True)
 
     path_to_stack = ensure_stack(path_source, path_tmp)
 
@@ -182,14 +188,14 @@ def ensure_stack(path_source: str | Path, path_tmp: str | Path) -> str:
 #             )
 
 
-if __name__ == "__main__":
+def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
-        description="neuron detection pipeline using CaImAn"
+        prog="neuron-detection", description="neuron detection pipeline using CaImAn"
     )
 
     parser.add_argument("--source", type=str, required=True)
-    parser.add_argument("--destination", type=Optional[str], default=None)
+    parser.add_argument("--destination", type=str, default=None)
     parser.add_argument("--prefix", type=str, default="results_CaImAn")
     parser.add_argument("--suffix", type=str, default="")
     parser.add_argument("--n_processes", type=int, default=12)
@@ -197,7 +203,13 @@ if __name__ == "__main__":
     parser.add_argument("--fr", type=float, default=15.0)
     parser.add_argument("--decay_time", type=float, default=0.47)
     parser.add_argument("--dxy", type=float, default=512.0 / 520)
-    args = parser.parse_args()
-    print(args)
+    return parser
 
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    print(args)
     run_detection(**args.__dict__)
+
+    return 0

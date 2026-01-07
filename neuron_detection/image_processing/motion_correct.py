@@ -2,18 +2,12 @@ import time
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
 from typing import Optional
 
-# use_local = True
-# if use_local:
-#     import caiman_local.caiman as caiman
-#     from caiman_local.caiman.source_extraction import cnmf as cnmf
-#     from caiman_local.caiman.motion_correction import MotionCorrect
-# else:
 import caiman, caiman.cluster
 from caiman.source_extraction import cnmf as cnmf
 from caiman.motion_correction import MotionCorrect
-import pickle
 
 
 def motion_correct(
@@ -35,8 +29,6 @@ def motion_correct(
     print(f"\tNow running motion correction @t = {time.ctime()}")
 
     t_start = time.time()  # start time measurement from here
-    # if "dview" in locals():  # 'locals' contains list of current local variables
-    #     caiman.stop_server(dview=dview)
 
     ## initialize parameters and settings for running OnACID
     opts = cnmf.params.CNMFParams(params_dict=params)

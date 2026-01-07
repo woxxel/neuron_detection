@@ -1,14 +1,12 @@
-import time  # , os
+import time
 from pathlib import Path
 
-# import h5py, hdf5storage
-# from scipy.io import savemat
 import numpy as np
 import caiman, caiman.cluster
 from caiman.source_extraction import cnmf as cnmf
 import caiman.utils.visualization as cm_viz
 from matplotlib import pyplot as plt
-from typing import Optional
+from typing import Optional, List
 
 """
     TODO:
@@ -70,10 +68,10 @@ def neuron_detection(
     Yr, dims, num_frames = caiman.load_memmap(fname)
     images = np.reshape(Yr.T, [num_frames] + list(dims), order="F")
     cnmf_obj.estimates.evaluate_components(images, cnmf_obj.params, dview=dview)
-    cnmf_obj.estimates.Cn = Cn
+    setattr(cnmf_obj.estimates, "Cn", Cn)
     print("Evaluated components")
     print(
-        f"Num accepted/rejected: {len(cnmf_obj.estimates.idx_components)}, {len(cnmf_obj.estimates.idx_components_bad)}"
+        f"Num accepted/rejected: {len(cnmf_obj.estimates.idx_components)}, {len(cnmf_obj.estimates.idx_components_bad)}"  # type: ignore
     )
     del images
     f = cnmf_obj.params.get("data", "fr")
@@ -112,7 +110,7 @@ def neuron_detection(
     images = np.reshape(Yr.T, [num_frames] + list(dims), order="C")
     cnmf_batch.mmap_file = str(fname)
     cnmf_batch = cnmf_batch.refit(images, dview)
-    cnmf_batch.estimates.Cn = Cn
+    setattr(cnmf_batch.estimates, "Cn", Cn)
 
     if "dview" in locals():  # 'locals' contains list of current local variables
         caiman.stop_server(dview=dview)
@@ -133,7 +131,7 @@ def neuron_detection(
     cnmf_batch.estimates.deconvolve(cnmf_batch.params, dview=dview, dff_flag=True)
     # Yr, dims, num_frames = caiman.load_memmap(str(fname))
 
-    cnmf_batch.estimates.dview = dview
+    setattr(cnmf_batch.estimates, "dview", dview)
     cnmf_batch.estimates.compute_residuals(Yr)
 
     images = np.reshape(Yr.T, [num_frames] + list(dims), order="F")
@@ -145,7 +143,7 @@ def neuron_detection(
     del images
 
     print(
-        f"Num accepted/rejected: {len(cnmf_batch.estimates.idx_components)}, {len(cnmf_batch.estimates.idx_components_bad)}"
+        f"Num accepted/rejected: {len(cnmf_batch.estimates.idx_components)}, {len(cnmf_batch.estimates.idx_components_bad)}"  # type: ignore
     )
 
     if plot:
@@ -202,7 +200,7 @@ def neuron_detection(
         "YrA",
     ]
 
-    cnmf_batch.estimates = clear_cnm(cnmf_batch.estimates, retain=retain_keys)
+    cnmf_batch.estimates = clear_cnm(cnmf_batch.estimates, retain=retain_keys)  # type: ignore
 
     # result_path_final = session_path / f"{resultFile_name}_final.{save_type}"
     # result_path_final = str(Path(path_destination) / f"{save_name}_final.{save_type}")
@@ -328,7 +326,7 @@ def plot_traces(est, f, idx_good=None, n_plots=(5, 5), figure_path=None):
 
     T = est.C.shape[1]
     T_range = np.array([T // 2, T])
-    t = np.linspace(*(T_range / f), T_range[1] - T_range[0])
+    t = np.linspace(*(T_range / f), T_range[1] - T_range[0])  # type: ignore
 
     idx_good = est.idx_components if idx_good is None else idx_good
     if idx_good is None:
@@ -398,8 +396,8 @@ def plot_key(
     nbins=30,
     idx_good=None,
     idx_bad=None,
-    flipped=False,
-    styles=None,
+    flipped: bool = False,
+    styles: List = list(),
 ):
     vals = getattr(est, key)
 
@@ -413,7 +411,7 @@ def plot_key(
 
         ax.hist(
             vals[idxes],
-            bins=np.linspace(*val_range, nbins),
+            bins=np.linspace(*val_range, nbins),  # type: ignore
             orientation="horizontal" if flipped else "vertical",
             **style,
         )
