@@ -4,11 +4,11 @@ import os, shutil, copy
 from pathlib import Path
 from typing import Optional
 
-from .preprocessing.file_structures.make_tif_stack import make_tif_stack
-from .image_processing.motion_correct import motion_correct
-from .image_processing.neuron_detection import neuron_detection
+from neuron_detection.preprocessing.file_structures.make_tif_stack import make_tif_stack
+from neuron_detection.image_processing.motion_correct import motion_correct
+from neuron_detection.image_processing.neuron_detection import neuron_detection
 
-from .utils.parameters import CaImAn as CaImAn_params
+from neuron_detection.utils.parameters import CaImAn as CaImAn_params
 import argparse
 
 
