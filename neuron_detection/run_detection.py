@@ -27,6 +27,7 @@ def run_detection(
     runs the full CaImAn neuron detection pipeline
     assumes source to provide the full path to the data (either to file or folder with images)
     """
+    print("in run_detection with source:", source, flush=True)
     path_source = Path(source)
     fname_stem = Path(source).stem
     suffix = f"{fname_stem}{suffix}"
@@ -44,8 +45,8 @@ def run_detection(
 
     os.environ["CAIMAN_DATA"] = str(Path.home() / "caiman_data")
     os.environ["CAIMAN_TEMP"] = str(path_tmp.resolve())
+    print("path tmp:", path_tmp, flush=True)
 
-    print("path tmp:", path_tmp)
     os.makedirs(path_tmp, exist_ok=True)
 
     path_to_stack = ensure_stack(path_source, path_tmp)
