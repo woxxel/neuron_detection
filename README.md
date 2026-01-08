@@ -4,6 +4,10 @@ A Python package and command-line tool for robust neuron detection and pre- and 
 
 The project is designed to be **cross-platform (Linux & Windows)** and suitable for **HPC environments**. Dependencies are managed via **conda**, and the tool is exposed through a convenient CLI.
 
+It is effectively a wrapper around CaImAn <https://github.com/flatironinstitute/CaImAn>, providing a realization of the neuron detection suitable for the kind of data that I have been working with, with minimal need for finetuning and the ability to provide the few open parameters via provided functions and CLI.
+
+I don't claim any rights to CaImAn (but am deeply grateful to all the work that people have been putting into developing it!)
+
 ---
 
 ## Features

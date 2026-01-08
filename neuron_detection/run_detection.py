@@ -21,7 +21,6 @@ def run_detection(
     n_processes: int = 12,
     save_type: str = "hdf5",
     **kwargs,
-    # additional_params: dict = {},
 ):
     """
     runs the full CaImAn neuron detection pipeline
@@ -30,7 +29,6 @@ def run_detection(
     print("in run_detection with source:", source, flush=True)
     path_source = Path(source)
     fname_stem = Path(source).stem
-    suffix = f"{fname_stem}{suffix}"
 
     # print(f"USING FNAME STEM {fname_stem} TO GENERATE OUTPUT FILE NAMES - VIA SUFFIX!")
     path_destination = Path(destination) if destination else path_source.parent
@@ -49,19 +47,16 @@ def run_detection(
 
     os.makedirs(path_tmp, exist_ok=True)
 
+    ## ensures that the file is in tif-stack format,
+    ## and that it is available at path_tmp location for faster access
     path_to_stack = ensure_stack(path_source, path_tmp)
 
-    resultFile_name = f"{prefix}_{suffix}"
-    print(f"finally, saving file to {resultFile_name}")
-
-    ## enables possibility to change parameters
+    ## change parameters according to input
     params = copy.deepcopy(CaImAn_params)
     params.update(kwargs)
     print("using parameters:")
     for key, val in params.items():
         print(f"  {key}: {val}")
-
-    # Path(path_destination / "figures").mkdir(exist_ok=True)
 
     path_to_motion_correct = motion_correct(
         path_to_stack,
@@ -72,24 +67,18 @@ def run_detection(
         plot=True,
     )
     print("path to motion_correct:", path_to_motion_correct)
+
     path_to_neuron_detection = neuron_detection(
         path_to_motion_correct,
         params,
         path_destination=path_destination,
         prefix=prefix,
-        fname_stem=fname_stem,
+        fname_stem=f"{fname_stem}{suffix}",
         save_type=save_type,
         n_processes=n_processes,
         plot=True,
     )
     print("path to neuron_detection:", path_to_neuron_detection)
-
-    # resultFile_name = Path(
-    #     path_to_neuron_detection
-    # ).name  ## required to get extension right
-    # path_resultFile = path_destination / resultFile_name
-    # print("copying to:", path_resultFile)
-    # shutil.copy(path_to_neuron_detection, path_resultFile)
 
     ## need to clean up after!
     if path_tmp.is_dir() and str(path_tmp) != str(path_destination):
@@ -137,56 +126,6 @@ def ensure_stack(path_source: str | Path, path_tmp: str | Path) -> str:
         assert False, "No image files found in source!"
 
     return str(path_to_stack)
-
-
-# def run_pipeline_on_mouse_data(
-#     source: str | Path,
-#     destination: Optional[str | Path],
-#     suffix: str = "",
-#     prefix: str = "results_CaImAn",
-#     n_processes: int = 12,
-#     save_type: str = "hdf5",
-# ):
-#     """
-#     runs the full CaImAn neuron detection pipeline
-#     assumes source to provide the full path to the data (either to file or folder with images)
-#     """
-#     path_source = Path(source)
-#     path_destination = Path(destination) if destination else path_source.parent
-
-#     for session_path_source in path_source.iterdir():
-#         if session_path_source.is_dir():
-#             print(f"Processing session: {session_path_source.name}")
-#             session_path_destination = path_destination / session_path_source.name
-
-#             h5Files = [
-#                 file for file in os.listdir(session_path_source) if file.endswith(".h5")
-#             ]
-#             tifFiles = [
-#                 file
-#                 for file in os.listdir(session_path_source)
-#                 if file.endswith(".tif")
-#             ]
-
-#             if len(h5Files) or len(tifFiles):
-#                 img_path_source = session_path_source / (
-#                     h5Files[0] if len(h5Files) else tifFiles[0]
-#                 )
-#             elif Path(session_path_source / "images").is_dir():
-#                 img_path_source = session_path_source / "images"
-#             else:
-#                 print(
-#                     f"No image files found for session: {session_path_source.name}, skipping..."
-#                 )
-#                 continue
-#             run_detection(
-#                 img_path_source,
-#                 session_path_destination,
-#                 suffix=suffix,
-#                 prefix=prefix,
-#                 n_processes=n_processes,
-#                 save_type=save_type,
-#             )
 
 
 def build_parser() -> argparse.ArgumentParser:
