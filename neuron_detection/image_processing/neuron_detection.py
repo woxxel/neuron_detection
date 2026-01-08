@@ -290,7 +290,7 @@ def plot_contours(
         est.A, img.shape, thr=thr, thr_method=thr_method
     )
 
-    plt.figure(figsize=(20, 10))
+    fig = plt.figure(figsize=(20, 10))
     coor_g = [est.coordinates[cr] for cr in idx_good]
     plt.subplot(1, 2, 1)
     cm_viz.plot_contours(
@@ -321,6 +321,11 @@ def plot_contours(
     if figure_path is not None:
         plt.savefig(figure_path, dpi=150)
 
+    plt.show()
+
+    fig.canvas.draw_idle()
+    fig.canvas.flush_events()
+
 
 def plot_traces(est, f, idx_good=None, n_plots=(5, 5), figure_path=None):
 
@@ -335,7 +340,7 @@ def plot_traces(est, f, idx_good=None, n_plots=(5, 5), figure_path=None):
     idxes = np.random.choice(idx_good, size=np.prod(n_plots), replace=False)
     idxes.sort()
 
-    plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 10))
     for i, n in enumerate(idxes):
 
         plt.subplot(*n_plots, i + 1)
@@ -387,6 +392,11 @@ def plot_traces(est, f, idx_good=None, n_plots=(5, 5), figure_path=None):
 
     if figure_path is not None:
         plt.savefig(figure_path, dpi=150)
+
+    plt.show()
+
+    fig.canvas.draw_idle()
+    fig.canvas.flush_events()
 
 
 def plot_key(
@@ -592,3 +602,8 @@ def plot_quality(
     plt.tight_layout()
     if figure_path is not None:
         plt.savefig(figure_path, dpi=150)
+
+    plt.show()
+
+    fig.canvas.draw_idle()
+    fig.canvas.flush_events()

@@ -114,7 +114,7 @@ def plot_results_motion_correction(
     shifts, Cn, template, figure_path: Optional[str | Path] = None
 ):
 
-    plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 10))
     plt.subplot(2, 2, 1)
     plt.imshow(template, origin="lower", cmap="gray")
     plt.title("motion correction template")
@@ -183,3 +183,7 @@ def plot_results_motion_correction(
     plt.tight_layout()
     if figure_path is not None:
         plt.savefig(figure_path, dpi=150)
+    plt.show()
+
+    fig.canvas.draw_idle()
+    fig.canvas.flush_events()

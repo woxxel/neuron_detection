@@ -55,8 +55,8 @@ def make_tif_stack(
         def get_frame(t, normalize_by=None):
             yield data[t, ...] / normalize_by if normalize_by else data[t, ...]
 
-    elif ext in ["tif", ".tiff"]:
-
+    elif ext in [".tif", ".tiff"]:
+        print("its a tif")
         fnames = [
             file
             for file in Path(source_path).iterdir()
