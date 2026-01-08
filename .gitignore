@@ -10,9 +10,11 @@
 #ignoring subfolder of CaImAn
 data/
 tmp/
+build/
 
 #ignoring pyc-files
 **/__pycache__/
 *.pyc
+*.egg-info
 
 .ipynb_checkpoints/
