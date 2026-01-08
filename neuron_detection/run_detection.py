@@ -4,11 +4,6 @@ import os, shutil, copy
 from pathlib import Path
 from typing import Optional
 
-from neuron_detection.preprocessing.file_structures.make_tif_stack import make_tif_stack
-from neuron_detection.image_processing.motion_correct import motion_correct
-from neuron_detection.image_processing.neuron_detection import neuron_detection
-
-from neuron_detection.utils.parameters import CaImAn as CaImAn_params
 import argparse
 
 
@@ -26,6 +21,12 @@ def run_detection(
     runs the full CaImAn neuron detection pipeline
     assumes source to provide the full path to the data (either to file or folder with images)
     """
+
+    from neuron_detection.image_processing.motion_correct import motion_correct
+    from neuron_detection.image_processing.neuron_detection import neuron_detection
+
+    from neuron_detection.utils.parameters import CaImAn as CaImAn_params
+
     print("in run_detection with source:", source, flush=True)
     path_source = Path(source)
     fname_stem = Path(source).stem
@@ -97,6 +98,10 @@ def ensure_stack(path_source: str | Path, path_tmp: str | Path) -> str:
         2. as .h5 file
         3. as image files in source folder
     """
+    from neuron_detection.preprocessing.file_structures.make_tif_stack import (
+        make_tif_stack,
+    )
+
     path_source = Path(path_source)
     path_tmp = Path(path_tmp)
 
@@ -131,25 +136,70 @@ def ensure_stack(path_source: str | Path, path_tmp: str | Path) -> str:
 def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
-        prog="neuron-detection", description="neuron detection pipeline using CaImAn"
+        prog="neuron-detection", description="Neuron detection pipeline using CaImAn"
     )
 
-    parser.add_argument("--source", type=str, required=True)
-    parser.add_argument("--destination", type=str, default=None)
-    parser.add_argument("--prefix", type=str, default="results_CaImAn")
-    parser.add_argument("--suffix", type=str, default="")
-    parser.add_argument("--n_processes", type=int, default=12)
-    parser.add_argument("--save_type", type=str, default="hdf5")
-    parser.add_argument("--fr", type=float, default=15.0)
-    parser.add_argument("--decay_time", type=float, default=0.47)
-    parser.add_argument("--dxy", type=float, default=512.0 / 520)
+    parser.add_argument(
+        "--source",
+        type=str,
+        required=True,
+        help="Complete path to *.tif file containing imaging data",
+    )
+    parser.add_argument(
+        "--destination",
+        type=str,
+        default=None,
+        help="Optional path for storing results. Defaults to source path",
+    )
+    parser.add_argument(
+        "--prefix",
+        type=str,
+        default="results_CaImAn",
+        help="Prefix of CaImAn result files",
+    )
+    parser.add_argument(
+        "--suffix",
+        type=str,
+        default="",
+        help="Optional suffix for different runs of detection",
+    )
+    parser.add_argument(
+        "--n_processes",
+        type=int,
+        default=12,
+        help="Number of processes for parallel processing",
+    )
+    parser.add_argument(
+        "--save_type",
+        type=str,
+        default="hdf5",
+        help="Specifies result file type (without trailing '.'). Defaults to hdf5",
+    )
+    parser.add_argument(
+        "--fr",
+        type=float,
+        default=15.0,
+        help="Sampling frequency of the images. Sets the according CaImAn parameter",
+    )
+    parser.add_argument(
+        "--decay_time",
+        type=float,
+        default=0.47,
+        help="Length of a typical transient of the calcium indicator (not really decay time...). Sets the according CaImAn parameter",
+    )
+    parser.add_argument(
+        "--dxy",
+        type=float,
+        default=512.0 / 520,
+        help="Spatial resolution of FOV in pixels per um",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    print(args)
+    # print(args)
     run_detection(**args.__dict__)
 
     return 0
