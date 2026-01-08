@@ -208,7 +208,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    print("ho!")
     parser = build_parser()
     args = parser.parse_args(argv)
     print(args)
