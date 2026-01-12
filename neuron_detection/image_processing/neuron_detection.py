@@ -40,7 +40,7 @@ def neuron_detection(
     # params["fr"] = 15.0
     # params["decay_time"] = 0.4  # GCaMP6f[1]
 
-    params["p"] = 0
+    params["p"] = 2
     params["epochs"] = 1
     params["show_movie"] = False  # whether to display movie while fitting
     params["n_processes"] = n_processes
