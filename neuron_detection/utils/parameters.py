@@ -1,12 +1,12 @@
 # set up CNMF parameters
 params_motion = {
     "max_shifts": (
-        6,
-        6,
+        12,
+        12,
     ),  # maximum allowed rigid shift in pixels (view the movie to get a sense of motion)
-    "strides": (48, 48),  # create a new patch every x pixels for pw-rigid correction
+    "strides": (96, 96),  # create a new patch every x pixels for pw-rigid correction
     "overlaps": (24, 24),  # overlap between patches (size of patch strides+overlaps)
-    "max_deviation_rigid": 3,  # maximum deviation allowed for patch with respect to rigid shifts
+    "max_deviation_rigid": 6,  # maximum deviation allowed for patch with respect to rigid shifts
     "pw_rigid": True,
     # "shifts_opencv": True,
 }
