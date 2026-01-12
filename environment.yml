@@ -10,19 +10,4 @@ dependencies:
   - tifffile
   - tqdm
 
-prefix: /home/wollex/miniforge3/envs/caiman
-
-# - argparse
-# - caiman
-# - copy
-# - h5py
-# - matplotlib
-# - numpy
-# - os
-# - pathlib
-# - pickle
-# - shutil
-# - tifffile
-# - time
-# - tqdm
-# - typing
+# prefix: /home/wollex/miniforge3/envs/neuron-detection

@@ -15,6 +15,7 @@ def run_detection(
     suffix: str = "",
     n_processes: int = 12,
     save_type: str = "hdf5",
+    cleanup=True,
     **kwargs,
 ):
     """
@@ -27,7 +28,7 @@ def run_detection(
 
     from neuron_detection.utils.parameters import CaImAn as CaImAn_params
 
-    print("in run_detection with source:", source, flush=True)
+    print("### Running neuron detection with source:", source, flush=True)
     path_source = Path(source)
     fname_stem = Path(source).stem
 
@@ -44,8 +45,16 @@ def run_detection(
 
     os.environ["CAIMAN_DATA"] = str(Path.home() / "caiman_data")
     os.environ["CAIMAN_TEMP"] = str(path_tmp.resolve())
-    print("path tmp:", path_tmp, flush=True)
-
+    print("\t Storing temporary files in temporary directory:", path_tmp, flush=True)
+    if Path(path_tmp).is_dir():
+        cleanup = False
+        print(
+            "\t! Temporary directory already exists - disabling cleanup to prevent data loss"
+        )
+    elif cleanup:
+        print(
+            "\t! Temporary directory will be deleted once the program has successfully finished"
+        )
     os.makedirs(path_tmp, exist_ok=True)
 
     ## ensures that the file is in tif-stack format,
@@ -63,7 +72,6 @@ def run_detection(
         path_to_stack,
         params,
         path_destination=path_destination,
-        fname_stem=fname_stem,
         n_processes=4,
         plot=True,
     )
@@ -82,7 +90,7 @@ def run_detection(
     print("path to neuron_detection:", path_to_neuron_detection)
 
     ## need to clean up after!
-    if path_tmp.is_dir() and str(path_tmp) != str(path_destination):
+    if cleanup and path_tmp.is_dir() and str(path_tmp) != str(path_destination):
         print("cleaning up temporary files...")
         shutil.rmtree(path_tmp)
 
