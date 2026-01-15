@@ -127,8 +127,6 @@ def neuron_detection(
     )
     print("Detrended df/f")
 
-    cnmf_batch.estimates.deconvolve(cnmf_batch.params, dview=dview, dff_flag=False)
-    cnmf_batch.estimates.deconvolve(cnmf_batch.params, dview=dview, dff_flag=True)
     # Yr, dims, num_frames = caiman.load_memmap(str(fname))
 
     setattr(cnmf_batch.estimates, "dview", dview)
@@ -146,20 +144,14 @@ def neuron_detection(
         f"Num accepted/rejected: {len(cnmf_batch.estimates.idx_components)}, {len(cnmf_batch.estimates.idx_components_bad)}"  # type: ignore
     )
 
+    figure_dir = Path(path_destination) / "figures"
     if plot:
+        figure_dir.mkdir(exist_ok=True)
         try:
-            figure_dir = Path(path_destination) / "figures"
-            figure_dir.mkdir(exist_ok=True)
 
             plot_contours(
                 cnmf_batch.estimates,
                 figure_path=figure_dir / f"neuron_contours_{fname_stem}.png",
-            )
-            plot_traces(
-                cnmf_batch.estimates,
-                f=f,
-                figure_path=figure_dir / f"neuron_traces_{fname_stem}.png",
-                n_plots=(5, 5),
             )
             plot_quality(
                 cnmf_batch, figure_path=figure_dir / f"neuron_quality_{fname_stem}.png"
@@ -174,6 +166,17 @@ def neuron_detection(
     cnmf_batch.estimates.select_components(
         use_object=True, save_discarded_components=False
     )
+
+    ## run this after selection, as selection doesnt properly clean up S_dff, F_dff_dec
+    try:
+        cnmf_batch.estimates.deconvolve(cnmf_batch.params, dview=dview, dff_flag=False)
+        cnmf_batch.estimates.deconvolve(cnmf_batch.params, dview=dview, dff_flag=True)
+        print("Deconvolved traces")
+    except Exception as e:
+        print("Could not deconvolve traces:", e)
+
+    if "dview" in locals():  # 'locals' contains list of current local variables
+        caiman.stop_server(dview=dview)
 
     retain_keys = [
         "A",
@@ -201,6 +204,17 @@ def neuron_detection(
     ]
 
     cnmf_batch.estimates = clear_cnm(cnmf_batch.estimates, retain=retain_keys)  # type: ignore
+
+    if plot:
+        try:
+            plot_traces(
+                cnmf_batch.estimates,
+                f=f,
+                figure_path=figure_dir / f"neuron_traces_{fname_stem}.png",
+                n_plots=(5, 5),
+            )
+        except Exception as e:
+            print("Could not create plots:", e)
 
     # result_path_final = session_path / f"{resultFile_name}_final.{save_type}"
     # result_path_final = str(Path(path_destination) / f"{save_name}_final.{save_type}")
@@ -278,8 +292,8 @@ def plot_contours(
     figure_path=None,
 ):
 
-    idx_good = est.idx_components if idx_good is None else idx_good
-    idx_bad = est.idx_components_bad if idx_bad is None else idx_bad
+    idx_good = getattr(est, "idx_components", None) if idx_good is None else idx_good
+    idx_bad = getattr(est, "idx_components_bad", None) if idx_bad is None else idx_bad
 
     if idx_good is None:
         idx_good = np.arange(est.A.shape[1])
@@ -333,7 +347,7 @@ def plot_traces(est, f, idx_good=None, n_plots=(5, 5), figure_path=None):
     T_range = np.array([T // 2, T])
     t = np.linspace(*(T_range / f), T_range[1] - T_range[0])  # type: ignore
 
-    idx_good = est.idx_components if idx_good is None else idx_good
+    idx_good = getattr(est, "idx_components", None) if idx_good is None else idx_good
     if idx_good is None:
         idx_good = np.arange(est.C.shape[0])
     # print(idx_good)
@@ -411,8 +425,8 @@ def plot_key(
 ):
     vals = getattr(est, key)
 
-    idx_good = est.idx_components if idx_good is None else idx_good
-    idx_bad = est.idx_components_bad if idx_bad is None else idx_bad
+    idx_good = getattr(est, "idx_components", None) if idx_good is None else idx_good
+    idx_bad = getattr(est, "idx_components_bad", None) if idx_bad is None else idx_bad
     val_range = np.percentile(vals[np.isfinite(vals)], [1, 99])
 
     for idxes, style in zip([idx_bad, idx_good], styles):
@@ -462,8 +476,8 @@ def plot_scatter(ax, est, key_x, key_y, idx_good=None, idx_bad=None):
     x_vals = getattr(est, key_x)
     y_vals = getattr(est, key_y)
 
-    idx_good = est.idx_components if idx_good is None else idx_good
-    idx_bad = est.idx_components_bad if idx_bad is None else idx_bad
+    idx_good = getattr(est, "idx_components", None) if idx_good is None else idx_good
+    idx_bad = getattr(est, "idx_components_bad", None) if idx_bad is None else idx_bad
 
     ax.scatter(
         x_vals[idx_bad],
@@ -489,8 +503,16 @@ def plot_quality(
     cnmf_obj, idx_good=None, idx_bad=None, border_thr=5.0, figure_path=None
 ):
 
-    idx_good = cnmf_obj.estimates.idx_components if idx_good is None else idx_good
-    idx_bad = cnmf_obj.estimates.idx_components_bad if idx_bad is None else idx_bad
+    idx_good = (
+        getattr(cnmf_obj.estimates, "idx_components", None)
+        if idx_good is None
+        else idx_good
+    )
+    idx_bad = (
+        getattr(cnmf_obj.estimates, "idx_components_bad", None)
+        if idx_bad is None
+        else idx_bad
+    )
 
     if idx_good is None:
         idx_good = np.arange(cnmf_obj.estimates.A.shape[1])
