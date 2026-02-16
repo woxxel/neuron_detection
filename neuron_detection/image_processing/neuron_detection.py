@@ -105,7 +105,7 @@ def neuron_detection(
         dview = None
         n_processes = 1
 
-    cnmf_batch.params.set("temporal", {"p": 2, "optimize_g": True})
+    cnmf_batch.params.set("temporal", {"p": 2, "optimize_g": False})
     Yr, dims, num_frames = caiman.load_memmap(str(fname))
     images = np.reshape(Yr.T, [num_frames] + list(dims), order="C")
     cnmf_batch.mmap_file = str(fname)

@@ -4,6 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 from typing import Optional
+from tifffile import imread, imwrite
+from scipy.ndimage import median_filter
+
 
 import caiman, caiman.cluster
 from caiman.source_extraction import cnmf as cnmf
@@ -30,7 +33,16 @@ def motion_correct(
 
     t_start = time.time()  # start time measurement from here
 
+    # print(f"Loading data from {fname} for median filtering...")
+    # data = imread(fname)
+    # data = data.astype(np.float32)
+    # data_filtered = median_filter(data, size=(5, 1, 1))
+    # fname_short_median = fname.parent / f"{fname.stem}_median{fname.suffix}"
+    # print(f"Saving filtered data to {fname_short_median}...")
+    # imwrite(fname_short_median, data_filtered.astype(data.dtype))
+
     ## initialize parameters and settings for running OnACID
+    #
     opts = cnmf.params.CNMFParams(params_dict=params)
     if use_parallel:
         c, dview, n_processes = caiman.cluster.setup_cluster(
@@ -40,9 +52,15 @@ def motion_correct(
         dview = None
         n_processes = 1
 
+    print("Now running the actual motion correction...")
     ## run the actual motion correction algorithm
     mc = MotionCorrect(fname, dview=dview, **opts.get_group("motion"))
     mc.motion_correct(save_movie=True)
+    # mc = MotionCorrect(fname_short_median, dview=dview, **opts.get_group("motion"))
+    # mc.motion_correct(save_movie=False)
+    # print("Applying shifts to original data")
+    # path_to_motion_correct = mc.apply_shifts_movie(fname, save_memmap=True)
+    # mc.mmap_file = [path_to_motion_correct]
 
     if use_parallel:
         caiman.stop_server(dview=dview)  ## restart server to clean up memory
@@ -60,7 +78,7 @@ def motion_correct(
         "motion_corrected_file": mc.mmap_file[0],
         "shifts": shifts,
         "Cn": Cn,
-        "template": mc.total_template_els,
+        "template": mc.total_template_els if mc.pw_rigid else mc.total_template_rig,
     }
 
     with open(
@@ -96,7 +114,9 @@ def calculate_shifts(mc: MotionCorrect):
             "x_shifts_max": x_shifts_rig,
             "y_shifts_max": y_shifts_rig,
         },
-        "piecewise": {
+    }
+    if mc.pw_rigid:
+        shifts["piecewise"] = {
             "x_shifts": mc.x_shifts_els,
             "y_shifts": mc.y_shifts_els,
             "x_shifts_max": np.percentile(
@@ -105,8 +125,7 @@ def calculate_shifts(mc: MotionCorrect):
             "y_shifts_max": np.percentile(
                 np.concatenate(mc.y_shifts_els), [1, 99], axis=0
             ),
-        },
-    }
+        }
     return shifts
 
 
@@ -124,12 +143,18 @@ def plot_results_motion_correction(
     plt.title("local correlations after rigid motion correction")
 
     plt.subplot(4, 4, (9, 11))
-    plt.plot(shifts["piecewise"]["x_shifts"], linewidth=0.2)
+    if "piecewise" in shifts:
+        plt.plot(shifts["piecewise"]["x_shifts"], linewidth=0.2)
+    plt.plot(shifts["rigid"]["x_shifts"], linewidth=0.5)
+
     # plt.hist2d(np.concatenate(mc.x_shifts_els), np.concatenate(mc.y_shifts_els), bins=50, cmap='hot')
+    text_str = f"x shifts (rig): {shifts['rigid']['x_shifts_max']}"
+    if "piecewise" in shifts:
+        text_str += f"\n x shifts (pw): {shifts['piecewise']['x_shifts_max']}"
     plt.text(
         0.5,
         0.8,
-        f"x shifts (rig): {shifts['rigid']['x_shifts_max']}\n x shifts (pw): {shifts['piecewise']['x_shifts_max']}",
+        text_str,
         transform=plt.gca().transAxes,
         ha="center",
     )
@@ -137,13 +162,18 @@ def plot_results_motion_correction(
     plt.gca().spines[["top", "right"]].set_visible(False)
 
     plt.subplot(4, 4, (13, 15))
-    plt.plot(shifts["piecewise"]["y_shifts"], linewidth=0.2)
+    if "piecewise" in shifts:
+        plt.plot(shifts["piecewise"]["y_shifts"], linewidth=0.2)
+    plt.plot(shifts["rigid"]["y_shifts"], linewidth=0.5)
     plt.xlabel("frames")
     plt.ylabel("y shifts")
+    text_str = f"y shifts (rig): {shifts['rigid']['y_shifts_max']}"
+    if "piecewise" in shifts:
+        text_str += f"\n y shifts (pw): {shifts['piecewise']['y_shifts_max']}"
     plt.text(
         0.5,
         0.8,
-        f"y shifts (rig): {shifts['rigid']['y_shifts_max']}\n y shifts (pw): {shifts['piecewise']['y_shifts_max']}",
+        text_str,
         transform=plt.gca().transAxes,
         ha="center",
     )
@@ -152,15 +182,22 @@ def plot_results_motion_correction(
     ax_scatter = plt.subplot(2, 4, 8)
 
     ax = ax_scatter.twinx()
-    ax.hist(
-        np.concatenate(shifts["piecewise"]["x_shifts"]), bins=50, alpha=0.5, color="C0"
-    )
+    if "piecewise" in shifts:
+        hist_data = np.concatenate(shifts["piecewise"]["x_shifts"])
+    else:
+        hist_data = shifts["rigid"]["x_shifts"].copy()
+    ax.hist(hist_data, bins=50, alpha=0.5, color="C0")
+
     plt.setp(ax, yticks=[])
     ax.spines[["top", "right"]].set_visible(False)
 
     ax = ax_scatter.twiny()
+    if "piecewise" in shifts:
+        hist_data = np.concatenate(shifts["piecewise"]["y_shifts"])
+    else:
+        hist_data = shifts["rigid"]["y_shifts"].copy()
     ax.hist(
-        np.concatenate(shifts["piecewise"]["y_shifts"]),
+        hist_data,
         bins=50,
         alpha=0.5,
         color="C0",
@@ -169,9 +206,10 @@ def plot_results_motion_correction(
     plt.setp(ax, xticks=[])
     ax.spines[["top", "right"]].set_visible(False)
 
+    key = "piecewise" if "piecewise" in shifts else "rigid"
     ax_scatter.plot(
-        shifts["piecewise"]["x_shifts"],
-        shifts["piecewise"]["y_shifts"],
+        shifts[key]["x_shifts"],
+        shifts[key]["y_shifts"],
         marker=".",
         markersize=1.0,
         markeredgecolor=None,
