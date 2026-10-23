@@ -8,8 +8,7 @@
 *.txt
 
 #ignoring subfolder of CaImAn
-data/
-tmp/
+notebooks/
 build/
 
 #ignoring pyc-files
