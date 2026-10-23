@@ -63,6 +63,7 @@ def run_detection(
 
     ## change parameters according to input
     params = copy.deepcopy(CaImAn_params)
+    params["show_movie"] = False  # whether to display movie while fitting
     params.update(kwargs)
     print("using parameters:")
     for key, val in params.items():

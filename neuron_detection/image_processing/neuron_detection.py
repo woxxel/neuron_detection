@@ -4,6 +4,8 @@ from pathlib import Path
 import numpy as np
 import caiman, caiman.cluster
 from caiman.source_extraction import cnmf as cnmf
+from caiman.source_extraction.cnmf.params import CNMFParams
+
 import caiman.utils.visualization as cm_viz
 from matplotlib import pyplot as plt
 from typing import Optional, List
@@ -14,9 +16,26 @@ from typing import Optional, List
 """
 
 
+def init_dview(n_processes, dview=None):
+
+    if dview:
+        caiman.stop_server(dview=dview)
+
+    use_parallel = n_processes is not None and n_processes > 1
+    if use_parallel:
+        c, dview, n_processes = caiman.cluster.setup_cluster(
+            n_processes=n_processes, single_thread=False
+        )
+    else:
+        dview = None
+        n_processes = 1
+    return dview, n_processes
+
+
 def neuron_detection(
     fname,
-    params,
+    params_dict,
+    seeded_init: Optional[dict] = None,
     path_destination: str | Path = ".",
     prefix: str = "results_CaImAn",
     fname_stem: Optional[str] = None,
@@ -27,156 +46,157 @@ def neuron_detection(
     """
     Runs the neuron detection algorithm OnACID and returns the path to the output file
     """
-    # border_thr=5,
 
-    # save_name = str(Path(fname).parent / f"{save_name}.{save_type}")
     result_path = str(Path(path_destination) / f"{prefix}_{fname_stem}.{save_type}")
     print(f"in the end, saving results to: {result_path}")
 
-    print(f"\tNow running neuron detection @t = {time.ctime()}")
     t_start = time.time()  # start time measurement from here
 
-    params["fnames"] = [fname]
-    # params["fr"] = 15.0
-    # params["decay_time"] = 0.4  # GCaMP6f[1]
+    params_dict["fnames"] = [fname]
+    params_dict["n_processes"] = n_processes
+    params_dict["p"] = 2
+    params_dict["optimize_g"] = False
 
-    params["p"] = 2
-    params["epochs"] = 1
-    params["show_movie"] = False  # whether to display movie while fitting
-    params["n_processes"] = n_processes
-    params["init_method"] = "cnmf"
+    params = CNMFParams(params_dict=params_dict)
+    f = params.get("data", "fr")
 
-    use_parallel = n_processes is not None and n_processes > 1
-
-    m_rig = caiman.load(str(fname))
-    Cn = caiman.local_correlations(m_rig, swap_dim=False)
-    del m_rig
-
-    opts = cnmf.params.CNMFParams(params_dict=params)
-
-    if use_parallel:
-        c, dview, n_processes = caiman.cluster.setup_cluster(
-            n_processes=n_processes, single_thread=False
-        )
-    else:
-        dview = None
-        n_processes = 1
-
-    cnmf_obj = cnmf.online_cnmf.OnACID(params=opts, dview=dview)
-    cnmf_obj.fit_online()
-
-    Yr, dims, num_frames = caiman.load_memmap(fname)
+    Yr, dims, num_frames = caiman.load_memmap(str(fname))  # loading file handle only
     images = np.reshape(Yr.T, [num_frames] + list(dims), order="F")
-    cnmf_obj.estimates.evaluate_components(images, cnmf_obj.params, dview=dview)
-    setattr(cnmf_obj.estimates, "Cn", Cn)
-    print("Evaluated components")
-    print(
-        f"Num accepted/rejected: {len(cnmf_obj.estimates.idx_components)}, {len(cnmf_obj.estimates.idx_components_bad)}"  # type: ignore
-    )
-    del images
-    f = cnmf_obj.params.get("data", "fr")
+    if seeded_init is None:
+        print(f"\tNow running neuron detection from scratch @t = {time.ctime()}")
+        ## analyzing data from scratch
+        params.set("online", {"epochs": 1, "init_method": "cnmf"})
 
-    if plot:
-        try:
-            # figure_path = Path(path_destination) / "figures"
-            # figure_path.mkdir(exist_ok=True)
+        m_rig = caiman.load(str(fname))
+        Cn = caiman.local_correlations(m_rig, swap_dim=False)
+        del m_rig
 
-            plot_contours(cnmf_obj.estimates)
-            # plot_traces(cnmf_obj.estimates, f=f, n_plots=(5, 5))
-            # plot_quality(cnmf_obj)
-        except Exception as e:
-            print("Could not create plots:", e)
+        dview, n_processes = init_dview(n_processes)
+        cnmf_obj = cnmf.online_cnmf.OnACID(params=params, dview=dview)
+        cnmf_obj.fit_online()
 
-    cnmf_obj.estimates.select_components(
-        use_object=True, save_discarded_components=False
-    )
-    cnmf_obj.save(str(result_path))
-
-    if "dview" in locals():  # 'locals' contains list of current local variables
-        caiman.stop_server(dview=dview)
-
-    cnmf_batch = cnmf.cnmf.load_CNMF(str(result_path))
-
-    if use_parallel:
-        c, dview, n_processes = caiman.cluster.setup_cluster(
-            n_processes=n_processes, single_thread=False
+        cnmf_obj.estimates.evaluate_components(images, cnmf_obj.params, dview=dview)
+        setattr(cnmf_obj.estimates, "Cn", Cn)
+        print(
+            f"Num accepted/rejected: {len(cnmf_obj.estimates.idx_components)}, {len(cnmf_obj.estimates.idx_components_bad)}"  # type: ignore
         )
-    else:
-        dview = None
-        n_processes = 1
+        del images
 
-    cnmf_batch.params.set("temporal", {"p": 2, "optimize_g": False})
-    Yr, dims, num_frames = caiman.load_memmap(str(fname))
+        if plot:
+            try:
+                plot_contours(cnmf_obj.estimates)
+            except Exception as e:
+                print("Could not create plots:", e)
+
+        cnmf_obj.estimates.select_components(
+            use_object=True, save_discarded_components=False
+        )
+        cnmf_obj.save(str(result_path))
+        _ = init_dview(0, dview=dview)
+
+        cnmf_obj = cnmf.cnmf.load_CNMF(str(result_path))
+    else:
+        ## analyzing data when footprint initialization is provided
+        ## (e.g. from earlier runs, other sessions or channels)
+        print(
+            f"\tNow running neuron detection with seeded initialization @t = {time.ctime()}"
+        )
+        assert all(
+            key in seeded_init for key in ["A", "C", "b", "f", "Cn"]
+        ), "seeded_init must contain keys 'A', 'C', 'b', 'f', 'Cn'"
+        cnmf_obj = cnmf.cnmf.CNMF(
+            n_processes=12,
+            Ain=seeded_init["A"],
+            Cin=seeded_init["C"],
+            b_in=seeded_init["b"],
+            f_in=seeded_init["f"],
+            params=params,
+        )
+        setattr(cnmf_obj.estimates, "Cn", seeded_init["Cn"])
+
+        # if seeded_init is not None:
+
+        Y = np.transpose(images, list(range(1, len(dims) + 1)) + [0])
+        # Y_F = np.transpose(np.reshape(images, (num_frames, -1), order="F"))
+        Yr = np.transpose(np.reshape(images, (num_frames, -1), order="F"))
+        del images
+
+        Y.filename = str(fname)
+        # Y_F.filename = str(fname)
+        Yr.filename = str(fname)
+
+        ## run initial temporal update to initialize calcium traces for seeded neurons
+        ## (refit starts with spatial update and produces crap)
+
+        # run this non-parallel, as n_pixels_per_process is not set
+        # Y_F = cnmf_obj.preprocess(Y_F)
+        Yr = cnmf_obj.preprocess(Yr)
+        print("preprocessing done")
+        # cnmf_obj.update_temporal(Y_F)
+        cnmf_obj.update_temporal(Yr)
+        print("temporal update done")
+
+    cnmf_obj.params.set("temporal", {"p": 2, "optimize_g": False})
+    cnmf_obj.mmap_file = str(fname)
+
+    dview, n_processes = init_dview(n_processes)
+
     images = np.reshape(Yr.T, [num_frames] + list(dims), order="C")
-    cnmf_batch.mmap_file = str(fname)
-    cnmf_batch = cnmf_batch.refit(images, dview)
-    setattr(cnmf_batch.estimates, "Cn", Cn)
+    cnmf_obj = cnmf_obj.refit(images, dview)
 
-    if "dview" in locals():  # 'locals' contains list of current local variables
-        caiman.stop_server(dview=dview)
-    if use_parallel:
-        c, dview, n_processes = caiman.cluster.setup_cluster(
-            n_processes=n_processes, single_thread=False
-        )
-    else:
-        dview = None
-        n_processes = 1
+    dview, n_processes = init_dview(n_processes, dview=dview)
 
-    cnmf_batch.estimates.detrend_df_f(
+    cnmf_obj.estimates.detrend_df_f(
         quantileMin=8, frames_window=int(10 * f), flag_auto=False, use_residuals=False
     )
     print("Detrended df/f")
 
-    # Yr, dims, num_frames = caiman.load_memmap(str(fname))
-
-    setattr(cnmf_batch.estimates, "dview", dview)
-    cnmf_batch.estimates.compute_residuals(Yr)
-
-    images = np.reshape(Yr.T, [num_frames] + list(dims), order="F")
+    setattr(cnmf_obj.estimates, "dview", dview)
+    # cnmf_obj.estimates.compute_residuals(Y_F)
+    cnmf_obj.estimates.compute_residuals(Yr)
+    # del Y_F
     del Yr
     print("Computed residuals")
 
-    cnmf_batch.estimates.evaluate_components(images, cnmf_batch.params, dview=dview)
+    cnmf_obj.estimates.evaluate_components(images, cnmf_obj.params, dview=dview)
     print("Evaluated components")
     del images
 
     print(
-        f"Num accepted/rejected: {len(cnmf_batch.estimates.idx_components)}, {len(cnmf_batch.estimates.idx_components_bad)}"  # type: ignore
+        f"Num accepted/rejected: {len(cnmf_obj.estimates.idx_components)}, {len(cnmf_obj.estimates.idx_components_bad)}"  # type: ignore
     )
 
     figure_dir = Path(path_destination) / "figures"
     if plot:
         figure_dir.mkdir(exist_ok=True)
         try:
-
             plot_contours(
-                cnmf_batch.estimates,
+                cnmf_obj.estimates,
                 figure_path=figure_dir / f"neuron_contours_{fname_stem}.png",
             )
             plot_quality(
-                cnmf_batch, figure_path=figure_dir / f"neuron_quality_{fname_stem}.png"
+                cnmf_obj, figure_path=figure_dir / f"neuron_quality_{fname_stem}.png"
             )
         except Exception as e:
             print("Could not create plots:", e)
     else:
-        cnmf_batch.estimates.coordinates = cm_viz.get_contours(
-            cnmf_batch.estimates.A, dims, thr=0.2, thr_method="max"
+        cnmf_obj.estimates.coordinates = cm_viz.get_contours(
+            cnmf_obj.estimates.A, dims, thr=0.2, thr_method="max"
         )
 
-    cnmf_batch.estimates.select_components(
+    cnmf_obj.estimates.select_components(
         use_object=True, save_discarded_components=False
     )
 
     ## run this after selection, as selection doesnt properly clean up S_dff, F_dff_dec
     try:
-        cnmf_batch.estimates.deconvolve(cnmf_batch.params, dview=dview, dff_flag=False)
-        cnmf_batch.estimates.deconvolve(cnmf_batch.params, dview=dview, dff_flag=True)
+        cnmf_obj.estimates.deconvolve(cnmf_obj.params, dview=dview, dff_flag=False)
+        cnmf_obj.estimates.deconvolve(cnmf_obj.params, dview=dview, dff_flag=True)
         print("Deconvolved traces")
     except Exception as e:
         print("Could not deconvolve traces:", e)
 
-    if "dview" in locals():  # 'locals' contains list of current local variables
-        caiman.stop_server(dview=dview)
+    _ = init_dview(0, dview=dview)
 
     retain_keys = [
         "A",
@@ -203,12 +223,12 @@ def neuron_detection(
         "YrA",
     ]
 
-    cnmf_batch.estimates = clear_cnm(cnmf_batch.estimates, retain=retain_keys)  # type: ignore
+    cnmf_obj.estimates = clear_cnm(cnmf_obj.estimates, retain=retain_keys)  # type: ignore
 
     if plot:
         try:
             plot_traces(
-                cnmf_batch.estimates,
+                cnmf_obj.estimates,
                 f=f,
                 figure_path=figure_dir / f"neuron_traces_{fname_stem}.png",
                 n_plots=(5, 5),
@@ -216,39 +236,8 @@ def neuron_detection(
         except Exception as e:
             print("Could not create plots:", e)
 
-    # result_path_final = session_path / f"{resultFile_name}_final.{save_type}"
-    # result_path_final = str(Path(path_destination) / f"{save_name}_final.{save_type}")
     print(f"Saving results to {result_path}")
-    cnmf_batch.save(str(result_path))
-
-    # ## find and remove neurons which are too close to the border
-    # ## (often sliced or with border effects)
-    # # border_thr = 5
-    # # cnmf_obj.estimates.coordinates = caiman.utils.visualization.get_contours(
-    # #     cnmf_obj.estimates.A, cnmf_obj.estimates.dims, thr=0.2, thr_method="max"
-    # # )
-
-    # # idx_border = []
-    # # for n in range(N):
-
-    # #     if (cnmf_obj.estimates.coordinates[n]["CoM"] < border_thr).any() or (
-    # #         cnmf_obj.estimates.coordinates[n]["CoM"]
-    # #         > (cnmf_obj.estimates.dims[0] - border_thr)
-    # #     ).any():
-    # #         idx_border.append(n)
-
-    # # cnmf_obj.estimates.idx_components = np.setdiff1d(
-    # #     cnmf_obj.estimates.idx_components, idx_border
-    # # ).astype(int)
-    # # cnmf_obj.estimates.idx_components_bad = np.union1d(
-    # #     cnmf_obj.estimates.idx_components_bad, idx_border
-    # # ).astype(int)
-
-    # print(
-    #     f"Num accepted/rejected: {len(cnmf_obj.estimates.idx_components)}, {len(cnmf_obj.estimates.idx_components_bad)}"
-    # )
-    # # tau_inferred = ar2_to_tau(*cnmf_obj.estimates.g[0], f=f)
-    # # print(f"Inferred tau: {tau_inferred}")
+    cnmf_obj.save(str(result_path))
 
     print(
         "\tNeuron detection done @t = %s, (time passed: %s)"
