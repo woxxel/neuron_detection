@@ -1,21 +1,27 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = [
+    "setuptools>=77.0.3",
+    "setuptools-scm>=8",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "neuron-detection"              # distribution name (pip install neuron-detection)
-version = "0.1.0"
+dynamic = ["version"]
 description = "Wrapper package for robust neuron detection using CaImAn"
 readme = "README.md"
-requires-python = ">=3.10"
-license = {text = "Proprietary"}       # change if you have a LICENSE file
-authors = [{name = "Your Name"}]
+requires-python = ">=3.11"
+license = {text = "LICENSE"}       # change if you have a LICENSE file
+authors = [{name = "Alexander Schmidt"}]
 
 # Put your pip-installable deps here, e.g.
 dependencies = [
-  # "numpy>=1.24",
-  # "scipy>=1.10",
-  # "opencv-python>=4.8",
+  "numpy",
+  "scipy",
+  "opencv-python",
+  "tifffile",
+  "tqdm",
+  "h5py",
 ]
 
 [tool.setuptools.packages.find]
@@ -24,3 +30,7 @@ include = ["neuron_detection*"]
 
 [project.scripts]
 neuron-detection = "neuron_detection.run_detection:main"
+
+[tool.setuptools_scm]
+version_file = "seine/_version.py"
+local_scheme = "no-local-version"
