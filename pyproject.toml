@@ -6,12 +6,13 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "neuron-detection"              # distribution name (pip install neuron-detection)
+name = "CIDBN-neuron-detection"              # distribution name (pip install neuron-detection)
 dynamic = ["version"]
 description = "Wrapper package for robust neuron detection using CaImAn"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "LICENSE"}       # change if you have a LICENSE file
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{name = "Alexander Schmidt"}]
 
 # Put your pip-installable deps here, e.g.
@@ -32,5 +33,5 @@ include = ["neuron_detection*"]
 neuron-detection = "neuron_detection.run_detection:main"
 
 [tool.setuptools_scm]
-version_file = "seine/_version.py"
+version_file = "neuron_detection/_version.py"
 local_scheme = "no-local-version"
